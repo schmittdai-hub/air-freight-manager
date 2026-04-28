@@ -27,6 +27,60 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;}
 
+/* ══════════════════════════════════
+   LOGIN SCREEN
+══════════════════════════════════ */
+#login-screen{
+  display:none;position:fixed;inset:0;background:var(--bg);
+  align-items:center;justify-content:center;z-index:9999;
+}
+#login-screen.show{display:flex;}
+.login-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:40px 36px;width:360px;max-width:95vw;
+  box-shadow:0 8px 32px rgba(0,0,0,.10);
+}
+.login-brand{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--text-hint);
+  margin-bottom:6px;
+}
+.login-brand span{color:var(--accent);}
+.login-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:28px;color:var(--text);}
+.login-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.login-field label{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);}
+.login-field input{
+  font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--text);
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  padding:10px 12px;outline:none;transition:border-color .15s;
+}
+.login-field input:focus{border-color:var(--accent-mid);background:#fff;}
+.login-btn{
+  width:100%;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;padding:11px;border-radius:4px;
+  border:none;background:var(--accent);color:#fff;cursor:pointer;
+  transition:background .15s;margin-top:6px;
+}
+.login-btn:hover{background:var(--accent-mid);}
+.login-btn:disabled{background:var(--border-strong);cursor:not-allowed;}
+.login-error{
+  font-size:12px;color:var(--danger);background:var(--danger-bg);
+  border:1px solid #E08080;border-radius:4px;padding:8px 12px;
+  margin-top:12px;display:none;
+}
+.login-error.show{display:block;}
+.login-footer{
+  margin-top:24px;padding-top:16px;border-top:1px solid var(--border);
+  font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);
+  text-align:center;
+}
+
+/* ══════════════════════════════════
+   APP (oculto até login)
+══════════════════════════════════ */
+#app-wrapper{display:none;}
+#app-wrapper.show{display:block;}
+
 /* NAV */
 .app-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:12px;flex-wrap:wrap;}
 .nav-brand{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap;}
@@ -44,6 +98,13 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .sync-status.saving{background:var(--warn-bg);border-color:var(--warn-border);color:var(--warn);}
 .save-toast-nav{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--success);padding:6px 10px;opacity:0;transition:opacity .3s;}
 .save-toast-nav.show{opacity:1;}
+.logout-btn{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;
+  letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;
+  border-radius:3px;border:1px solid var(--border);background:transparent;
+  color:var(--text-hint);cursor:pointer;transition:all .15s;
+}
+.logout-btn:hover{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
 
 /* SCREENS */
 .screen{display:none;padding:24px;max-width:1100px;margin:0 auto;}
@@ -262,7 +323,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .status-select{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:4px 10px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;outline:none;}
 
 /* LOADING OVERLAY */
-.loading-overlay{position:fixed;inset:0;background:rgba(245,244,241,.85);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading-overlay{position:fixed;inset:0;background:rgba(245,244,241,.85);z-index:998;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
 .loading-overlay.show{display:flex;}
 .loading-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -284,6 +345,33 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 </head>
 <body>
 
+<!-- ══════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">Air Freight <span>Manager</span></div>
+    <div class="login-title">Sign In</div>
+    <div class="login-field">
+      <label>E-mail</label>
+      <input type="email" id="login-email" placeholder="your@email.com" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-footer">🔒 Access restricted · Secure via Supabase Auth</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     APP WRAPPER
+══════════════════════════════════════ -->
+<div id="app-wrapper">
+
 <!-- LOADING -->
 <div class="loading-overlay" id="loading-overlay">
   <div class="loading-spinner"></div>
@@ -303,6 +391,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   <div class="nav-right">
     <span class="sync-status" id="sync-status">⏳ Connecting…</span>
     <span class="save-toast-nav" id="save-toast-nav">✓ Saved</span>
+    <button class="logout-btn" onclick="doLogout()">⎋ Sign Out</button>
   </div>
 </nav>
 
@@ -433,8 +522,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="exp-days-open"></div>
     </div>
   </div>
-
-  <!-- 1. IDENTIFICATION -->
   <div class="section">
     <div class="section-header"><span class="section-title">1 · Identification</span></div>
     <div class="section-body">
@@ -498,8 +585,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
-  <!-- 2. SHIPPER & CONSIGNEE -->
   <div class="section">
     <div class="section-header"><span class="section-title">2 · Shipper & Consignee</span></div>
     <div class="section-body">
@@ -523,8 +608,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
-  <!-- 3. FLIGHT SCHEDULE -->
   <div class="section">
     <div class="section-header">
       <span class="section-title">3 · Flight Schedule</span>
@@ -562,8 +645,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
-  <!-- 4. DIMENSIONS & WEIGHT -->
   <div class="section">
     <div class="section-header">
       <span class="section-title">4 · Dimensions & Weight</span>
@@ -591,8 +672,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
-  <!-- 5. INLAND FREIGHT & PICK-UP -->
   <div class="section">
     <div class="section-header"><span class="section-title">5 · Inland Freight & Pick-up</span></div>
     <div class="section-body">
@@ -642,8 +721,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
-  <!-- 6. CHECKLIST -->
   <div class="section">
     <div class="section-header">
       <span class="section-title">6 · Process Checklist</span>
@@ -657,16 +734,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
-  <!-- 7. COMMENTS -->
   <div class="section">
     <div class="section-header"><span class="section-title">7 · Comments / Notes</span></div>
     <div class="section-body">
       <textarea id="e_comments" placeholder="Special instructions, routing notes, history..." style="min-height:80px;"></textarea>
     </div>
   </div>
-
-  <!-- 8. REVENUE -->
   <div class="section">
     <div class="section-header"><span class="section-title">8 · File Revenue & Profit</span></div>
     <div class="section-body">
@@ -676,7 +749,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="form-actions">
     <button class="btn btn-back" onclick="showScreen('list')">← Back to List</button>
     <button class="btn btn-primary" onclick="saveProcess('exp')">💾 Save Process</button>
@@ -704,7 +776,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="imp-days-open"></div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr"><span class="section-title">1 · Identification</span></div>
     <div class="section-body">
@@ -765,7 +836,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr"><span class="section-title">2 · Shipper & Consignee</span></div>
     <div class="section-body">
@@ -790,7 +860,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr"><span class="section-title">3 · Dates & Scheduling</span></div>
     <div class="section-body">
@@ -811,7 +880,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr">
       <span class="section-title">4 · Flight Schedule & Routing</span>
@@ -824,7 +892,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div id="i_legs"></div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr">
       <span class="section-title">5 · Dimensions & Weight</span>
@@ -852,7 +919,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr">
       <span class="section-title">6 · Process Checklist</span>
@@ -866,7 +932,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr"><span class="section-title">7 · Station Fees</span></div>
     <div class="section-body">
@@ -880,14 +945,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr"><span class="section-title">8 · Comments / Notes</span></div>
     <div class="section-body">
       <textarea id="i_comments" placeholder="Special instructions, customs notes, history..." style="min-height:80px;"></textarea>
     </div>
   </div>
-
   <div class="section">
     <div class="section-header imp-hdr"><span class="section-title">9 · File Revenue & Profit</span></div>
     <div class="section-body">
@@ -897,7 +960,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
     </div>
   </div>
-
   <div class="form-actions">
     <button class="btn btn-back imp" onclick="showScreen('list')">← Back to List</button>
     <button class="btn btn-primary imp" onclick="saveProcess('imp')">💾 Save Process</button>
@@ -905,6 +967,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <button class="btn btn-del" onclick="deleteCurrentProcess('imp')">🗑 Delete</button>
   </div>
 </div>
+
+</div><!-- end #app-wrapper -->
 
 <script>
 // ═══════════════════════════════════════════
@@ -915,7 +979,98 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const { createClient } = supabase;
 const db = createClient(SUPA_URL, SUPA_KEY);
 
-// cache local para performance
+// ═══════════════════════════════════════════
+// AUTH — LOGIN / LOGOUT
+// ═══════════════════════════════════════════
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.add('show');
+  document.getElementById('app-wrapper').classList.remove('show');
+}
+
+function showAppScreen() {
+  document.getElementById('login-screen').classList.remove('show');
+  document.getElementById('app-wrapper').classList.add('show');
+}
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+
+  errEl.classList.remove('show');
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your e-mail and password.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  btn.disabled   = true;
+  btn.textContent = 'Signing in…';
+
+  const { error } = await db.auth.signInWithPassword({ email, password });
+
+  btn.disabled   = false;
+  btn.textContent = 'Sign In →';
+
+  if (error) {
+    errEl.textContent = '❌ ' + (error.message || 'Invalid credentials.');
+    errEl.classList.add('show');
+    return;
+  }
+
+  // Login OK — carrega o app
+  await initApp();
+}
+
+async function doLogout() {
+  if (!confirm('Sign out of Air Freight Manager?')) return;
+  await db.auth.signOut();
+  showLoginScreen();
+  document.getElementById('login-email').value    = '';
+  document.getElementById('login-password').value = '';
+}
+
+// ═══════════════════════════════════════════
+// INIT — verifica sessão ao carregar
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  // Mostra login por padrão enquanto verifica
+  showLoginScreen();
+
+  const { data: { session } } = await db.auth.getSession();
+
+  if (session) {
+    // Sessão ativa → abre o app direto
+    await initApp();
+  }
+  // else: fica na tela de login
+});
+
+// Listener para mudanças de auth (ex: expirar sessão)
+db.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
+    showLoginScreen();
+  }
+});
+
+async function initApp() {
+  showAppScreen();
+  resetForm('exp');
+  resetForm('imp');
+  setSyncStatus('saving', '⏳ Connecting…');
+  await sbLoadProcesses();
+  await sbLoadCompanies();
+  checkMigrationNeeded();
+  showScreenDirect('list');
+  document.getElementById('tab-list').classList.add('active');
+  renderTable();
+  initDatePickers();
+}
+
+// ═══════════════════════════════════════════
+// SYNC STATUS
+// ═══════════════════════════════════════════
 let _processesCache = [];
 let _companiesCache = [];
 
@@ -1014,7 +1169,6 @@ async function sbSaveProcess(record) {
   const { error } = await db.from('processes').upsert(payload, { onConflict: 'key' });
   if (error) { setSyncStatus('err','❌ Save failed'); console.error(error); return false; }
   setSyncStatus('ok','☁️ Saved to Cloud');
-  // update cache
   const idx = _processesCache.findIndex(p => p.key === record.key);
   if (idx >= 0) _processesCache[idx] = record; else _processesCache.unshift(record);
   return true;
@@ -1037,7 +1191,6 @@ async function sbLoadCompanies() {
   _companiesCache = (data || []).map(r => ({ id: r.id, name: r.name, type: r.type, contact: r.contact, phone: r.phone, notes: r.notes }));
   return _companiesCache;
 }
-
 async function sbSaveCompany(company) {
   const { data, error } = await db.from('companies').insert({
     name: company.name, type: company.type,
@@ -1047,18 +1200,16 @@ async function sbSaveCompany(company) {
   _companiesCache.push({ ...company, id: data.id });
   return data;
 }
-
 async function sbDeleteCompany(id) {
   const { error } = await db.from('companies').delete().eq('id', id);
   if (error) { console.error(error); return false; }
   _companiesCache = _companiesCache.filter(c => c.id !== id);
   return true;
 }
-
 function getCompanies() { return _companiesCache; }
 
 // ═══════════════════════════════════════════
-// MIGRATION — localStorage → Supabase
+// MIGRATION
 // ═══════════════════════════════════════════
 function getLocalProcesses() {
   return Object.keys(localStorage)
@@ -1066,17 +1217,14 @@ function getLocalProcesses() {
     .map(k => JSON.parse(localStorage.getItem(k)))
     .filter(Boolean);
 }
-
 function checkMigrationNeeded() {
   const local = getLocalProcesses();
-  const banner = document.getElementById('migrate-banner');
-  if (local.length > 0) banner.style.display = 'flex'; else banner.style.display = 'none';
+  document.getElementById('migrate-banner').style.display = local.length > 0 ? 'flex' : 'none';
 }
-
 async function migrateLocalToSupabase() {
   const local = getLocalProcesses();
   if (!local.length) { alert('No local data to migrate.'); return; }
-  if (!confirm(`Migrate ${local.length} local process(es) to the cloud?\n\nThis is safe — local copies will be kept until you clear the browser.`)) return;
+  if (!confirm(`Migrate ${local.length} local process(es) to the cloud?`)) return;
   showLoading(`Migrating ${local.length} processes…`);
   let ok = 0, fail = 0;
   for (const record of local) {
@@ -1088,16 +1236,15 @@ async function migrateLocalToSupabase() {
     if (error) { console.error(error); fail++; } else ok++;
   }
   hideLoading();
-  alert(`Migration complete!\n✅ ${ok} migrated\n${fail > 0 ? '❌ '+fail+' failed' : ''}`);
+  alert(`Migration complete!\n✅ ${ok} migrated${fail > 0 ? '\n❌ '+fail+' failed' : ''}`);
   await sbLoadProcesses();
   document.getElementById('migrate-banner').style.display = 'none';
   renderTable();
 }
-
 function dismissMigrate() { document.getElementById('migrate-banner').style.display = 'none'; }
 
 // ═══════════════════════════════════════════
-// LOADING OVERLAY
+// LOADING
 // ═══════════════════════════════════════════
 function showLoading(msg='Loading…') {
   document.getElementById('loading-text').textContent = msg;
@@ -1183,8 +1330,7 @@ async function saveCompany(){
 }
 async function deleteCompany(id){
   const company=getCompanies().find(c=>c.id===id);
-  const name=company?.name||'this company';
-  if(!confirm(`⚠️ REMOVE COMPANY\n\n"${name}"\n\nAre you sure you want to remove this company?`))return;
+  if(!confirm(`Remove "${company?.name||'this company'}"?`))return;
   await sbDeleteCompany(id);
   renderCompanyList();
 }
@@ -1436,14 +1582,13 @@ function openProcess(mode,key){
   document.getElementById(mode==='exp'?'tab-exp-new':'tab-imp-new').classList.add('active');
 }
 
-// ── DELETE COM CONFIRMAÇÃO DUPLA ──
 async function deleteCurrentProcess(mode){
   const key=mode==='exp'?currentExpKey:currentImpKey;
   if(!key){showScreen('list');return;}
   const record=_processesCache.find(p=>p.key===key);
   const fileNum=record?.data?.e_file_number||record?.data?.i_file_number||'this process';
-  if(!confirm(`⚠️ DELETE PROCESS\n\nFile: ${fileNum}\nStatus: ${record?.status||'—'}\n\nThis action cannot be undone.\nAre you sure you want to delete?`))return;
-  if(!confirm(`🔴 FINAL CONFIRMATION\n\n"${fileNum}" will be permanently deleted.\n\nClick OK to confirm deletion.`))return;
+  if(!confirm(`⚠️ DELETE PROCESS\n\nFile: ${fileNum}\nStatus: ${record?.status||'—'}\n\nThis action cannot be undone.\nAre you sure?`))return;
+  if(!confirm(`🔴 FINAL CONFIRMATION\n\n"${fileNum}" will be permanently deleted.\n\nClick OK to confirm.`))return;
   await sbDeleteProcess(key);
   if(mode==='exp')currentExpKey=null;else currentImpKey=null;
   showScreen('list');
@@ -1453,8 +1598,8 @@ async function deleteProcessByKey(key){
   const record=_processesCache.find(p=>p.key===key);
   const fileNum=record?.data?.e_file_number||record?.data?.i_file_number||'this process';
   const modeLabel=record?.mode?.toUpperCase()||'';
-  if(!confirm(`⚠️ DELETE PROCESS\n\nFile: ${fileNum} [${modeLabel}]\nStatus: ${record?.status||'—'}\n\nThis action cannot be undone.\nAre you sure you want to delete?`))return;
-  if(!confirm(`🔴 FINAL CONFIRMATION\n\n"${fileNum}" will be permanently deleted.\n\nClick OK to confirm deletion.`))return;
+  if(!confirm(`⚠️ DELETE PROCESS\n\nFile: ${fileNum} [${modeLabel}]\n\nAre you sure?`))return;
+  if(!confirm(`🔴 FINAL CONFIRMATION\n\n"${fileNum}" will be permanently deleted.`))return;
   await sbDeleteProcess(key);
   renderTable();
 }
@@ -1529,7 +1674,6 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb,ws,'Processes');
   XLSX.writeFile(wb,'AirFreight_Processes_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
-
 function exportBackup(){
   const blob=new Blob([JSON.stringify({processes:getAllProcesses(),companies:getCompanies(),exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AFM_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
@@ -1550,7 +1694,7 @@ async function importBackup(event){
       }
       if(backup.companies){for(const c of backup.companies){await db.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes},{onConflict:'id'});}}
       hideLoading();
-      alert('Backup imported to cloud successfully!');
+      alert('Backup imported successfully!');
       await sbLoadProcesses();renderTable();
     }catch(err){hideLoading();alert('Error: '+err.message);}
   };
@@ -1597,22 +1741,6 @@ function exportPDF(mode){
   if(data[p+'_comments']){section('Comments');doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(data[p+'_comments'],178),14,y);}
   doc.save('AFM_'+file.replace(/[^a-zA-Z0-9]/g,'-')+'_'+mode.toUpperCase()+'.pdf');
 }
-
-// ═══════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', async () => {
-  resetForm('exp');
-  resetForm('imp');
-  setSyncStatus('saving','⏳ Connecting…');
-  await sbLoadProcesses();
-  await sbLoadCompanies();
-  checkMigrationNeeded();
-  showScreenDirect('list');
-  document.getElementById('tab-list').classList.add('active');
-  renderTable();
-  initDatePickers();
-});
 </script>
 </body>
 </html>
