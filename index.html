@@ -1557,8 +1557,12 @@ function loadProcess(key){
     document.getElementById('e_legs').innerHTML='';
     eLegs=0;
     record.data.legs.forEach((leg,i)=>{
-addLeg('e',{'e_lf_'+i:leg.flight,'e_lfr_'+i:leg.from,'e_lto_'+i:leg.to,'e_ld_'+i:leg.date});
-    });
+addLeg('e', {
+  ['e_lf_'  + i]: leg.flight,
+  ['e_lfr_' + i]: leg.from,
+  ['e_lto_' + i]: leg.to,
+  ['e_ld_'  + i]: leg.date
+});    });
   }
   // ── VOLUMES — FIXED: clear default vol, load saved ones ──
   document.getElementById(p+'_vols').innerHTML='';
