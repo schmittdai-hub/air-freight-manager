@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Air Freight Process Manager</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root{
+  --bg:#F5F4F1;--surface:#FFF;--surface2:#F0EEE9;--border:#D8D5CE;--border-strong:#B0ADA4;
+  --text:#1A1917;--text-muted:#6B6860;--text-hint:#9B9890;
+  --accent:#1A4F8A;--accent-light:#E8EFF8;--accent-mid:#3A6FAA;
+  --imp:#6B3FA0;--imp-light:#F3EEFF;--imp-mid:#8A5DC0;--imp-border:#C8A8F0;
+  --success:#1A6B3A;--success-bg:#E8F5EE;--success-border:#A0D8B0;
+  --warn:#7A4A00;--warn-bg:#FFF3DC;--warn-border:#E8C060;
+  --danger:#8A1A1A;--danger-bg:#F8E8E8;
+  --dg-bg:#FFF0E8;--dg-text:#7A2E00;--dg-border:#F0B080;
+  --onhold:#005A5A;--onhold-bg:#E0F5F5;--onhold-border:#80D0D0;
+  --cancelled:#5A005A;--cancelled-bg:#F5E0F5;--cancelled-border:#D080D0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;}
+
+/* NAV */
+.app-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:12px;flex-wrap:wrap;}
+.nav-brand{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap;}
+.nav-brand span{color:var(--accent);}
+.nav-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+.nav-tab{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:6px 14px;border-radius:3px;border:1px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.nav-tab:hover{background:var(--surface2);}
+.nav-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.nav-tab.imp.active{background:var(--imp);border-color:var(--imp);}
+.nav-tab.dash.active{background:#2D6A4F;border-color:#2D6A4F;}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.sync-status{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-hint);}
+.sync-status.ok{background:var(--success-bg);border-color:var(--success-border);color:var(--success);}
+.sync-status.err{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
+.sync-status.saving{background:var(--warn-bg);border-color:var(--warn-border);color:var(--warn);}
+.save-toast-nav{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--success);padding:6px 10px;opacity:0;transition:opacity .3s;}
+.save-toast-nav.show{opacity:1;}
+
+/* SCREENS */
+.screen{display:none;padding:24px;max-width:1100px;margin:0 auto;}
+.screen.active{display:block;}
+
+/* MIGRATE BANNER */
+.migrate-banner{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:6px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.migrate-banner-text{font-size:12px;color:var(--warn);flex:1;}
+.migrate-banner strong{font-weight:600;}
+
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px 18px;}
+.dash-card-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-hint);margin-bottom:6px;}
+.dash-card-value{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--text);}
+.dash-card-value.accent{color:var(--accent);}
+.dash-card-value.imp{color:var(--imp);}
+.dash-card-value.green{color:var(--success);}
+.dash-card-value.warn{color:var(--warn);}
+.dash-card-sub{font-size:11px;color:var(--text-hint);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.dash-section-title{font-size:14px;font-weight:600;margin-bottom:12px;letter-spacing:-.01em;}
+.dash-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;}
+.alert-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:4px;margin-bottom:6px;font-size:12px;}
+.alert-item.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn);}
+.alert-item.danger{background:var(--danger-bg);border:1px solid #E08080;color:var(--danger);}
+.alert-item.info{background:var(--accent-light);border:1px solid #A0C0E8;color:var(--accent);}
+.alert-icon{font-size:14px;flex-shrink:0;}
+.no-alerts{font-size:12px;color:var(--text-hint);text-align:center;padding:20px;}
+.recent-table{width:100%;border-collapse:collapse;}
+.recent-table th{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+.recent-table td{padding:8px;font-size:12px;border-bottom:1px solid var(--border);cursor:pointer;}
+.recent-table tbody tr:hover{background:var(--accent-light);}
+.recent-table tr:last-child td{border-bottom:none;}
+
+/* LIST */
+.list-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap;}
+.list-title{font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.list-title small{font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px;font-family:'IBM Plex Mono',monospace;}
+.list-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.filters-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.filter-input{font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:6px 10px;outline:none;transition:border .15s;}
+.filter-input:focus{border-color:var(--accent-mid);}
+.filter-select{font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:6px 10px;outline:none;cursor:pointer;}
+.clear-filters{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint);background:transparent;border:none;cursor:pointer;padding:4px 8px;}
+.clear-filters:hover{color:var(--danger);}
+.processes-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.processes-table th{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);padding:9px 12px;background:var(--surface2);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.processes-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px;}
+.processes-table tr:last-child td{border-bottom:none;}
+.processes-table tbody tr{cursor:pointer;transition:background .1s;}
+.processes-table tbody tr:hover{background:var(--accent-light);}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+.route-cell{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:var(--accent);}
+.pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.05em;padding:2px 8px;border-radius:2px;}
+.pill-new{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);}
+.pill-inprocess{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);}
+.pill-closed{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border);}
+.pill-onhold{background:var(--onhold-bg);color:var(--onhold);border:1px solid var(--onhold-border);}
+.pill-cancelled{background:var(--cancelled-bg);color:var(--cancelled);border:1px solid var(--cancelled-border);}
+.pill-exp{background:var(--accent-light);color:var(--accent);border:1px solid #A0C0E8;}
+.pill-imp{background:var(--imp-light);color:var(--imp);border:1px solid var(--imp-border);}
+.prog-mini{height:3px;background:var(--border);border-radius:2px;width:72px;margin-top:4px;}
+.prog-mini-fill{height:3px;background:var(--success);border-radius:2px;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-hint);}
+.empty-state .icon{font-size:32px;margin-bottom:12px;opacity:.4;}
+.empty-state p{font-size:13px;margin-bottom:16px;}
+.delete-row-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;border:1px solid var(--border);background:transparent;color:var(--text-hint);cursor:pointer;opacity:0;transition:opacity .15s;}
+.processes-table tbody tr:hover .delete-row-btn{opacity:1;}
+.delete-row-btn:hover{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
+.next-task-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+.ntb-0{background:#E8EFF8;color:#1A4F8A;border:1px solid #A0C0E8;}
+.ntb-1{background:#FFF3DC;color:#7A4A00;border:1px solid #E8C060;}
+.ntb-2{background:#E8F5EE;color:#1A6B3A;border:1px solid #A0D8B0;}
+.ntb-3{background:#F3EEFF;color:#6B3FA0;border:1px solid #C8A8F0;}
+.ntb-done{background:#E8F5EE;color:#1A6B3A;border:1px solid #A0D8B0;}
+.days-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.days-fresh{background:#E8F5EE;color:#1A6B3A;border:1px solid #A0D8B0;}
+.days-mid{background:#FFF3DC;color:#7A4A00;border:1px solid #E8C060;}
+.days-old{background:#F8E8E8;color:#8A1A1A;border:1px solid #E08080;}
+
+/* FORM */
+.form-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;flex-wrap:wrap;gap:12px;border-bottom:3px solid var(--accent);}
+.form-topbar.imp-mode{border-bottom-color:var(--imp);}
+.doc-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.doc-main-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-top:2px;}
+.doc-main-title span.exp-color{color:var(--accent);}
+.doc-main-title span.imp-color{color:var(--imp);}
+.form-topbar-right{text-align:right;}
+.file-number-display{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:var(--accent);}
+.file-number-display.imp{color:var(--imp);}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-bottom:12px;overflow:hidden;}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.section-header.imp-hdr{background:var(--imp-light);border-bottom-color:var(--imp-border);}
+.section-title{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.section-body{padding:14px;}
+.fields-grid{display:grid;gap:10px;}
+.cols-2{grid-template-columns:1fr 1fr;}
+.cols-3{grid-template-columns:1fr 1fr 1fr;}
+.cols-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+.cols-5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
+.field{display:flex;flex-direction:column;gap:4px;position:relative;}
+.field label{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-hint);}
+.field label.required::after{content:' *';color:var(--accent);}
+.field input,.field select,.field textarea{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;transition:border-color .15s;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent-mid);background:#fff;}
+.field textarea{resize:vertical;min-height:56px;}
+.toggle-group{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--bg);}
+.toggle-group label{flex:1;display:flex;align-items:center;justify-content:center;padding:6px 8px;font-size:11px;font-weight:500;cursor:pointer;color:var(--text-muted);border-right:1px solid var(--border);transition:all .1s;letter-spacing:.02em;text-align:center;}
+.toggle-group label:last-child{border-right:none;}
+.toggle-group input[type=radio]{display:none;}
+.toggle-group label.active{background:var(--accent);color:#fff;}
+.toggle-group label.active-dg{background:var(--dg-bg);color:var(--dg-text);border-color:var(--dg-border);}
+.dg-subtype-row{display:none;}
+.dg-subtype-row.visible{display:flex;gap:10px;align-items:center;margin-top:8px;padding:10px 12px;background:var(--dg-bg);border:1px solid var(--dg-border);border-radius:3px;}
+.dg-row-label{font-size:11px;font-weight:600;color:var(--dg-text);letter-spacing:.05em;}
+.lv-extra{display:none;}
+.lv-extra.visible{display:contents;}
+.pu-toggle-row{display:flex;gap:6px;}
+.pu-toggle-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;border-radius:3px;border:1px solid var(--border);background:var(--bg);cursor:pointer;color:var(--text-muted);transition:all .15s;}
+.pu-toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.carrier-wrap{display:flex;gap:6px;flex-wrap:wrap;}
+.carrier-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;transition:all .15s;}
+.carrier-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+.bsource-wrap{display:flex;gap:6px;flex-wrap:wrap;}
+.bsource-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;transition:all .15s;}
+.bsource-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+.bsource-other-wrap{display:none;margin-top:6px;}
+.bsource-other-wrap.visible{display:block;}
+.route-stop{display:grid;grid-template-columns:90px 1fr 1fr 1fr 1fr;gap:8px;align-items:end;padding:8px 0;border-bottom:1px dashed var(--border);}
+.route-stop:last-child{border-bottom:none;}
+.route-leg-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text-muted);padding-bottom:8px;}
+.add-btn,.remove-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 12px;border-radius:3px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text-muted);transition:all .1s;}
+.add-btn:hover{background:var(--accent-light);border-color:var(--accent-mid);color:var(--accent);}
+.remove-btn:hover{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
+.volume-row{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px;}
+.volume-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.volume-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;}
+.volume-fields{display:grid;grid-template-columns:70px repeat(8,1fr);gap:6px;align-items:end;}
+.vi{font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:5px 6px;outline:none;width:100%;color:var(--text);text-align:right;}
+.vi:focus{border-color:var(--accent-mid);}
+.vi-in{background:#F0EEF8!important;color:var(--imp)!important;border-color:#D0C8F0!important;}
+.vi-in:focus{border-color:var(--imp-mid)!important;}
+@keyframes convertFlash{0%{background:#C8F0D8;border-color:#60C890;}100%{background:inherit;border-color:inherit;}}
+.vi-converted{animation:convertFlash 0.8s ease-out;}
+.col-hdr-vols{display:grid;grid-template-columns:70px repeat(8,1fr);gap:6px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+.col-hdr-vols span{font-size:9px;font-weight:600;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;text-align:center;}
+.col-hdr-vols span.in-hdr{color:var(--imp);}
+.vol-legend{display:flex;gap:16px;margin-bottom:10px;font-size:11px;color:var(--text-hint);align-items:center;flex-wrap:wrap;}
+.totals-bar{margin-top:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;}
+.tot-item{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);}
+.tot-item strong{color:var(--text);}
+.chargeable-badge{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;padding:4px 14px;border-radius:4px;background:var(--accent-light);color:var(--accent);border:1px solid #A0C0E8;}
+.chargeable-badge.imp{background:var(--imp-light);color:var(--imp);border-color:var(--imp-border);}
+.checklist-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.check-item{display:grid;grid-template-columns:18px 1fr 120px;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;transition:background .1s;}
+.check-item:hover{background:var(--accent-light);border-color:var(--border-strong);}
+.check-item.done{background:var(--success-bg);border-color:var(--success-border);}
+.check-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--success);cursor:pointer;flex-shrink:0;}
+.check-item .check-name{font-size:12px;font-weight:500;color:var(--text);}
+.check-item.done .check-name{color:var(--success);text-decoration:line-through;text-decoration-color:#60B880;}
+.check-date-in{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:3px 6px;outline:none;width:100%;}
+.check-date-in:focus{border-color:var(--accent-mid);}
+.progress-wrap{margin-top:12px;}
+.progress-track{height:3px;background:var(--border);border-radius:2px;}
+.progress-fill{height:3px;background:var(--success);border-radius:2px;transition:width .3s;}
+.progress-info{display:flex;justify-content:space-between;margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);}
+.revenue-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.rev-card{border:1px solid var(--border);border-radius:4px;padding:12px 14px;}
+.rev-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);margin-bottom:6px;}
+.rev-card input{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500;color:var(--text);border:none;background:transparent;outline:none;width:100%;padding:0;}
+.rev-card input::placeholder{color:var(--border-strong);}
+.fees-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fee-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;}
+.fee-label{font-size:11px;font-weight:500;color:var(--text-muted);flex:1;white-space:nowrap;}
+.fee-input{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:4px 7px;outline:none;width:110px;text-align:right;}
+.fee-input:focus{border-color:var(--imp-mid);}
+.cost-inline{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;}
+.cost-inline-label{font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;flex:1;}
+.cost-inline-input{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:5px 8px;outline:none;width:140px;text-align:right;}
+.cost-inline-input:focus{border-color:var(--accent-mid);}
+.form-actions{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.06em;padding:8px 18px;border-radius:3px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text-muted);transition:all .15s;text-transform:uppercase;}
+.btn:hover{background:var(--surface2);border-color:var(--border-strong);color:var(--text);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:var(--accent-mid);color:#fff;}
+.btn-primary.imp{background:var(--imp);border-color:var(--imp);}
+.btn-primary.imp:hover{background:var(--imp-mid);}
+.btn-back{color:var(--accent);}
+.btn-back:hover{background:var(--accent-light);border-color:var(--accent-mid);}
+.btn-back.imp{color:var(--imp);}
+.btn-back.imp:hover{background:var(--imp-light);border-color:var(--imp-border);}
+.btn-del{color:var(--danger);border-color:#E08080;}
+.btn-del:hover{background:var(--danger-bg);color:var(--danger);}
+.btn-green{background:#2D6A4F;color:#fff;border-color:#2D6A4F;}
+.btn-green:hover{background:#1B4332;color:#fff;}
+.btn-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-border);}
+.btn-warn:hover{background:#FFE8A0;color:var(--warn);}
+.ac-wrap{position:relative;}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--accent-mid);border-top:none;border-radius:0 0 4px 4px;z-index:300;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.ac-item{padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover{background:var(--accent-light);}
+.ac-item-name{font-weight:500;}
+.ac-item-type{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:24px;width:520px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:16px;letter-spacing:-.01em;}
+.modal-footer{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.company-list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;margin-bottom:6px;}
+.cli-name{font-weight:500;font-size:12px;flex:1;}
+.cli-type{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);background:var(--border);padding:1px 6px;border-radius:2px;}
+.cli-del{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:2px;border:1px solid var(--border);background:transparent;color:var(--text-hint);cursor:pointer;}
+.cli-del:hover{background:var(--danger-bg);color:var(--danger);}
+.status-select{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:4px 10px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;outline:none;}
+
+/* LOADING OVERLAY */
+.loading-overlay{position:fixed;inset:0;background:rgba(245,244,241,.85);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading-overlay.show{display:flex;}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+
+@media print{.app-nav,.form-actions,.modal-overlay{display:none!important;}.screen{padding:8px;}.section{break-inside:avoid;}}
+@media(max-width:780px){
+  .dash-grid{grid-template-columns:1fr 1fr;}
+  .dash-two-col{grid-template-columns:1fr;}
+  .cols-3,.cols-4,.cols-5{grid-template-columns:1fr 1fr;}
+  .cols-2{grid-template-columns:1fr;}
+  .checklist-grid{grid-template-columns:1fr;}
+  .volume-fields{grid-template-columns:60px 1fr 1fr 1fr 1fr;}
+  .col-hdr-vols{grid-template-columns:60px 1fr 1fr 1fr 1fr;}
+  .route-stop{grid-template-columns:70px 1fr 1fr;}
+  .revenue-grid,.fees-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Loading...</div>
+</div>
+
+<!-- NAV -->
+<nav class="app-nav">
+  <div class="nav-brand">Air Freight <span>Manager</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab dash" id="tab-dash" onclick="showScreen('dash')">📊 Dashboard</button>
+    <button class="nav-tab active" id="tab-list" onclick="showScreen('list')">All Processes</button>
+    <button class="nav-tab" id="tab-exp-new" onclick="newProcess('exp')">+ New Export</button>
+    <button class="nav-tab imp" id="tab-imp-new" onclick="newProcess('imp')">+ New Import</button>
+    <button class="nav-tab" id="tab-companies" onclick="openCompanies()">🏢 Companies</button>
+  </div>
+  <div class="nav-right">
+    <span class="sync-status" id="sync-status">⏳ Connecting…</span>
+    <span class="save-toast-nav" id="save-toast-nav">✓ Saved</span>
+  </div>
+</nav>
+
+<!-- COMPANY MODAL -->
+<div class="modal-overlay" id="modal-companies">
+  <div class="modal">
+    <div class="modal-title">🏢 Company Register</div>
+    <div class="fields-grid cols-2" style="margin-bottom:10px">
+      <div class="field"><label>Company Name</label><input type="text" id="cm_name" placeholder="e.g. DHL Supply Chain"></div>
+      <div class="field"><label>Type</label>
+        <select id="cm_type">
+          <option value="shipper">Shipper</option>
+          <option value="consignee">Consignee</option>
+          <option value="trucker">Trucker</option>
+          <option value="agent">Agent</option>
+          <option value="broker">Customs Broker</option>
+          <option value="airline">Airline</option>
+        </select>
+      </div>
+    </div>
+    <div class="fields-grid cols-2" style="margin-bottom:10px">
+      <div class="field"><label>Contact Name</label><input type="text" id="cm_contact" placeholder=""></div>
+      <div class="field"><label>Phone</label><input type="text" id="cm_phone" placeholder=""></div>
+    </div>
+    <div class="field" style="margin-bottom:12px"><label>Notes</label><input type="text" id="cm_notes" placeholder=""></div>
+    <button class="btn btn-primary" onclick="saveCompany()">+ Add Company</button>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);margin-bottom:8px;">Saved Companies</div>
+      <div id="company-list"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeCompanies()">Close</button></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="screen" id="screen-dash">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div style="font-size:20px;font-weight:600;letter-spacing:-.02em;">Dashboard</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)" id="dash-updated"></div>
+  </div>
+  <div class="dash-grid" id="dash-kpis"></div>
+  <div class="dash-two-col">
+    <div class="dash-panel"><div class="dash-section-title">⚠️ Alerts</div><div id="dash-alerts"></div></div>
+    <div class="dash-panel">
+      <div class="dash-section-title">🕐 Recent Processes</div>
+      <table class="recent-table">
+        <thead><tr><th>Type</th><th>File #</th><th>Route</th><th>Status</th><th>Days Open</th></tr></thead>
+        <tbody id="dash-recent"></tbody>
+      </table>
+    </div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px">
+    <div class="dash-section-title">💰 Revenue Summary</div>
+    <div class="dash-grid" id="dash-revenue" style="margin-bottom:0"></div>
+  </div>
+</div>
+
+<!-- LIST -->
+<div class="screen active" id="screen-list">
+  <div id="migrate-banner" class="migrate-banner" style="display:none">
+    <span class="migrate-banner-text">⚠️ <strong>Local data found!</strong> You have processes saved in this browser that haven't been migrated to the cloud yet.</span>
+    <button class="btn btn-warn" onclick="migrateLocalToSupabase()">☁️ Migrate to Cloud Now</button>
+    <button class="btn" onclick="dismissMigrate()">Dismiss</button>
+  </div>
+  <div class="list-header">
+    <div class="list-title">All Processes <small id="list-count">0 records</small></div>
+    <div class="list-actions">
+      <button class="btn btn-green" onclick="exportExcel()">↓ Excel</button>
+      <button class="btn" onclick="exportBackup()">↓ Backup JSON</button>
+      <button class="btn" onclick="importBackupClick()">↑ Restore JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(event)">
+    </div>
+  </div>
+  <div class="filters-bar">
+    <input class="filter-input" id="f-search" placeholder="Search File #, MAWB, Shipper, Route…" style="width:240px" oninput="renderTable()">
+    <select class="filter-select" id="f-mode" onchange="renderTable()">
+      <option value="">Export + Import</option>
+      <option value="exp">Export only</option>
+      <option value="imp">Import only</option>
+    </select>
+    <select class="filter-select" id="f-status" onchange="renderTable()">
+      <option value="">All Statuses</option>
+      <option value="NEW">New</option>
+      <option value="IN PROCESS">In Process</option>
+      <option value="CLOSED">Closed</option>
+      <option value="ON HOLD">On Hold</option>
+      <option value="CANCELLED">Cancelled</option>
+    </select>
+    <input class="filter-input" id="f-date-from" type="text" placeholder="From MM/DD/YYYY" style="width:148px" oninput="renderTable()">
+    <input class="filter-input" id="f-date-to" type="text" placeholder="To MM/DD/YYYY" style="width:148px" oninput="renderTable()">
+    <button class="clear-filters" onclick="clearFilters()">Clear</button>
+  </div>
+  <table class="processes-table">
+    <thead>
+      <tr>
+        <th>Type</th><th>File #</th><th>MAWB</th><th>Shipper / Consignee</th>
+        <th>Route</th><th>Dept / ETA</th><th>Status</th><th>Next Task</th><th>Days Open</th><th>Progress</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="icon">📋</div>
+    <p>No processes found. Create your first export or import.</p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-primary" onclick="newProcess('exp')">+ New Export</button>
+      <button class="btn btn-primary imp" onclick="newProcess('imp')">+ New Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT FORM -->
+<div class="screen" id="screen-exp">
+  <div class="form-topbar">
+    <div>
+      <div class="doc-label">Air Freight Shipment</div>
+      <div class="doc-main-title">Export <span class="exp-color">Cover</span></div>
+    </div>
+    <div class="form-topbar-right">
+      <select class="status-select" id="exp-status-select">
+        <option value="NEW">NEW</option>
+        <option value="IN PROCESS">IN PROCESS</option>
+        <option value="CLOSED">CLOSED</option>
+        <option value="ON HOLD">ON HOLD</option>
+        <option value="CANCELLED">CANCELLED</option>
+      </select>
+      <div class="file-number-display" id="exp-file-display">—</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="exp-days-open"></div>
+    </div>
+  </div>
+
+  <!-- 1. IDENTIFICATION -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">1 · Identification</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class="required">File Number</label>
+          <input type="text" id="e_file_number" placeholder="e.g. EXP-2024-001" oninput="document.getElementById('exp-file-display').textContent=this.value||'—'">
+        </div>
+        <div class="field"><label class="required">MAWB</label><input type="text" id="e_mawb" placeholder="e.g. 123-45678901"></div>
+        <div class="field"><label>HAWB</label><input type="text" id="e_hawb" placeholder="e.g. HBL-0001"></div>
+        <div class="field ac-wrap"><label>Airline</label>
+          <input type="text" id="e_airline" placeholder="e.g. AA, LATAM" autocomplete="off" oninput="acFilter('e_airline','airline')">
+          <div class="ac-list" id="ac_e_airline" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class="required">Origin Airport</label><input type="text" id="e_origin" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class="required">Destination Airport</label><input type="text" id="e_dest" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field ac-wrap"><label>Agent</label>
+          <input type="text" id="e_agent" placeholder="" autocomplete="off" oninput="acFilter('e_agent','agent')">
+          <div class="ac-list" id="ac_e_agent" style="display:none"></div>
+        </div>
+        <div class="field"><label>Reference</label><input type="text" id="e_reference" placeholder=""></div>
+      </div>
+      <div class="fields-grid cols-3" style="margin-bottom:10px">
+        <div class="field"><label>Cargo Type</label>
+          <div class="toggle-group">
+            <label id="e_lbl_nondg" class="active" onclick="eDG(false)"><input type="radio" name="e_dg" value="non-dg" checked><span>NON-DG</span></label>
+            <label id="e_lbl_dg" onclick="eDG(true)"><input type="radio" name="e_dg" value="dg"><span>DG</span></label>
+          </div>
+        </div>
+        <div class="field"><label>Shipper Security</label>
+          <div class="toggle-group">
+            <label id="e_lbl_known" class="active" onclick="eT('e_lbl_known','e_lbl_unknown')"><input type="radio" name="e_sec" value="known" checked><span>KNOWN</span></label>
+            <label id="e_lbl_unknown" onclick="eT('e_lbl_unknown','e_lbl_known')"><input type="radio" name="e_sec" value="unknown"><span>UNKNOWN</span></label>
+          </div>
+        </div>
+        <div class="field"><label>Low Value</label>
+          <div class="toggle-group">
+            <label id="e_lbl_lv_yes" class="active" onclick="eLV(true)"><input type="radio" name="e_lv" value="yes" checked><span>YES</span></label>
+            <label id="e_lbl_lv_no" onclick="eLV(false)"><input type="radio" name="e_lv" value="no"><span>NO</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="dg-subtype-row" id="e_dg_row">
+        <span class="dg-row-label">⚠ DG TYPE:</span>
+        <div class="toggle-group" style="max-width:180px">
+          <label id="e_lbl_pax" class="active-dg" onclick="eDGT('pax')"><input type="radio" name="e_dgsub" value="pax" checked><span>PAX</span></label>
+          <label id="e_lbl_cao" onclick="eDGT('cao')"><input type="radio" name="e_dgsub" value="cao"><span>CAO</span></label>
+        </div>
+        <div class="field" style="max-width:300px;margin-left:12px">
+          <label style="color:var(--dg-text)">DG Description / UN Number</label>
+          <input type="text" id="e_dg_desc" placeholder="e.g. Lithium Batteries UN3481">
+        </div>
+      </div>
+      <div class="lv-extra" id="e_lv_fields">
+        <div class="fields-grid cols-3" style="margin-top:10px;padding:10px 12px;background:var(--accent-light);border:1px solid #B0C8E8;border-radius:3px">
+          <div class="field"><label style="color:var(--accent)">Declared Value (USD)</label><input type="text" id="e_declared_value" placeholder="e.g. 2500.00"></div>
+          <div class="field"><label style="color:var(--accent)">HTS Code</label><input type="text" id="e_hts_code" placeholder="e.g. 8471.30.0100"></div>
+          <div class="field"><label style="color:var(--accent)">AES ITN</label><input type="text" id="e_aes_itn" placeholder="e.g. X20240101123456"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. SHIPPER & CONSIGNEE -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">2 · Shipper & Consignee</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-2">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field ac-wrap">
+            <label class="required">Shipper</label>
+            <input type="text" id="e_shipper" placeholder="Company name" autocomplete="off" oninput="acFilter('e_shipper','shipper')">
+            <div class="ac-list" id="ac_e_shipper" style="display:none"></div>
+          </div>
+          <div class="field"><label>Shipper Address</label><textarea id="e_shipper_address" placeholder="Street, City, State, ZIP, Country" style="min-height:64px;"></textarea></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field ac-wrap">
+            <label class="required">Consignee</label>
+            <input type="text" id="e_consignee" placeholder="Company name" autocomplete="off" oninput="acFilter('e_consignee','consignee')">
+            <div class="ac-list" id="ac_e_consignee" style="display:none"></div>
+          </div>
+          <div class="field"><label>Consignee Address</label><textarea id="e_consignee_address" placeholder="Street, City, State, ZIP, Country" style="min-height:64px;"></textarea></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. FLIGHT SCHEDULE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">3 · Flight Schedule</span>
+      <button class="add-btn" onclick="addLeg('e')">+ Add Leg</button>
+    </div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr 1fr;gap:8px;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:10px;font-weight:500;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase">
+        <span>Leg</span><span>Flight #</span><span>From</span><span>To</span><span>Date / ETD</span>
+      </div>
+      <div id="e_legs" style="margin-bottom:14px;"></div>
+      <div class="fields-grid cols-4" style="margin-bottom:12px;">
+        <div class="field"><label>Airline Cut Off</label><input type="text" id="e_cutoff" placeholder="MM/DD/YYYY HH:MM" class="datepick-dt"></div>
+        <div class="field"><label>Departure Date</label><input type="text" id="e_departure" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>CASS Weight (kg)</label><input type="text" id="e_cass_weight" placeholder=""></div>
+        <div class="field"><label>Chargeable Weight</label><input type="text" id="e_chargeable" placeholder=""></div>
+      </div>
+      <div class="fields-grid cols-2" style="margin-bottom:12px;">
+        <div class="field">
+          <label>Booking Source</label>
+          <div class="bsource-wrap" id="e_bsource_wrap">
+            <button type="button" class="bsource-btn selected" data-val="Airline Direct" onclick="selectBSource('e','Airline Direct')">Airline Direct</button>
+            <button type="button" class="bsource-btn" data-val="Pelicargo" onclick="selectBSource('e','Pelicargo')">Pelicargo</button>
+            <button type="button" class="bsource-btn" data-val="WebCargo" onclick="selectBSource('e','WebCargo')">WebCargo</button>
+            <button type="button" class="bsource-btn" data-val="Other" onclick="selectBSource('e','Other')">Other</button>
+          </div>
+          <input type="hidden" id="e_bsource_val" value="Airline Direct">
+          <div class="bsource-other-wrap" id="e_bsource_other_wrap">
+            <input type="text" id="e_bsource_other" placeholder="Specify booking source…">
+          </div>
+        </div>
+        <div class="cost-inline" style="align-self:end;">
+          <span class="cost-inline-label">✈️ Air Freight Charges ($)</span>
+          <input class="cost-inline-input" type="number" id="e_airfreight_cost" placeholder="0.00" step="0.01">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. DIMENSIONS & WEIGHT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">4 · Dimensions & Weight</span>
+      <button class="add-btn" onclick="addVolume('e')">+ Add Volume</button>
+    </div>
+    <div class="section-body">
+      <div class="vol-legend">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent)"></span>cm / kg</span>
+        <span style="color:var(--border-strong)">|</span>
+        <span style="display:flex;align-items:center;gap:5px;color:var(--imp)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--imp)"></span>in / lbs — auto-convert</span>
+      </div>
+      <div class="col-hdr-vols">
+        <span>Pcs</span><span>L (cm)</span><span>W (cm)</span><span>H (cm)</span>
+        <span class="in-hdr">L (in)</span><span class="in-hdr">W (in)</span><span class="in-hdr">H (in)</span>
+        <span>Wt (kg)</span><span class="in-hdr">Wt (lbs)</span>
+      </div>
+      <div id="e_vols"></div>
+      <div class="totals-bar">
+        <span class="tot-item">Pieces: <strong id="e_tot_pcs">—</strong></span>
+        <span class="tot-item">Gross Wt: <strong id="e_tot_kg">—</strong></span>
+        <span class="tot-item">(<strong id="e_tot_lbs">—</strong>)</span>
+        <span class="tot-item">Volume: <strong id="e_tot_vol">—</strong></span>
+        <span class="tot-item">Vol. Wt: <strong id="e_tot_volwt">—</strong></span>
+        <span class="chargeable-badge" id="e_chargeable_badge">✈️ Est. Chargeable: —</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. INLAND FREIGHT & PICK-UP -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">5 · Inland Freight & Pick-up</span></div>
+    <div class="section-body">
+      <div class="field" style="margin-bottom:12px;">
+        <label>P/U From</label>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="pu-toggle-row">
+            <button type="button" class="pu-toggle-btn active" id="e_pu_same_btn" onclick="setPUFrom('same')">Same as Shipper</button>
+            <button type="button" class="pu-toggle-btn" id="e_pu_other_btn" onclick="setPUFrom('other')">Other Address</button>
+          </div>
+          <div id="e_pu_other_wrap" style="display:none;">
+            <textarea id="e_pu_from_address" placeholder="Pick-up address..." style="min-height:56px;width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="fields-grid cols-3" style="margin-bottom:12px;">
+        <div class="field"><label>P/U Date</label><input type="text" id="e_pu_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>Transfer Date</label><input type="text" id="e_transfer_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field ac-wrap"><label>Trucking Company</label>
+          <input type="text" id="e_trucker" placeholder="" autocomplete="off" oninput="acFilter('e_trucker','trucker')">
+          <div class="ac-list" id="ac_e_trucker" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-2" style="margin-bottom:12px;">
+        <div class="field">
+          <label>Carrier / Service</label>
+          <div class="carrier-wrap" id="e_carrier_wrap">
+            <button type="button" class="carrier-btn selected" data-val="FA" onclick="selectCarrier('e','FA')">FA</button>
+            <button type="button" class="carrier-btn" data-val="WWEX" onclick="selectCarrier('e','WWEX')">WWEX</button>
+            <button type="button" class="carrier-btn" data-val="UPS" onclick="selectCarrier('e','UPS')">UPS</button>
+            <button type="button" class="carrier-btn" data-val="EXFR" onclick="selectCarrier('e','EXFR')">EXFR</button>
+            <button type="button" class="carrier-btn" data-val="OTHER" onclick="selectCarrier('e','OTHER')">Other</button>
+          </div>
+          <input type="hidden" id="e_carrier_val" value="FA">
+        </div>
+        <div class="field"><label>CFS / Warehouse Station</label><input type="text" id="e_cfs" placeholder="e.g. MIA CFS, XPO Warehouse"></div>
+      </div>
+      <div class="fields-grid cols-2">
+        <div class="cost-inline">
+          <span class="cost-inline-label">💵 Inland Freight Cost ($)</span>
+          <input class="cost-inline-input" type="number" id="e_inland_cost" placeholder="0.00" step="0.01">
+        </div>
+        <div class="cost-inline">
+          <span class="cost-inline-label">🏭 Warehouse / CFS Cost ($)</span>
+          <input class="cost-inline-input" type="number" id="e_cfs_cost" placeholder="0.00" step="0.01">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. CHECKLIST -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">6 · Process Checklist</span>
+      <span id="e_chk_pct" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)">0 / 14</span>
+    </div>
+    <div class="section-body">
+      <div class="checklist-grid" id="e_checklist"></div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="e_prog_fill" style="width:0%"></div></div>
+        <div class="progress-info"><span id="e_prog_text">0 of 14 steps completed</span><span id="e_prog_pct">0%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. COMMENTS -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">7 · Comments / Notes</span></div>
+    <div class="section-body">
+      <textarea id="e_comments" placeholder="Special instructions, routing notes, history..." style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <!-- 8. REVENUE -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">8 · File Revenue & Profit</span></div>
+    <div class="section-body">
+      <div class="revenue-grid">
+        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="number" id="e_revenue" placeholder="0.00" step="0.01"></div>
+        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="number" id="e_profit" placeholder="0.00" step="0.01"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-back" onclick="showScreen('list')">← Back to List</button>
+    <button class="btn btn-primary" onclick="saveProcess('exp')">💾 Save Process</button>
+    <button class="btn" onclick="exportPDF('exp')">↓ PDF</button>
+    <button class="btn btn-del" onclick="deleteCurrentProcess('exp')">🗑 Delete</button>
+  </div>
+</div>
+
+<!-- IMPORT FORM -->
+<div class="screen" id="screen-imp">
+  <div class="form-topbar imp-mode">
+    <div>
+      <div class="doc-label">Air Freight Shipment</div>
+      <div class="doc-main-title">Import <span class="imp-color">Cover</span></div>
+    </div>
+    <div class="form-topbar-right">
+      <select class="status-select" id="imp-status-select">
+        <option value="NEW">NEW</option>
+        <option value="IN PROCESS">IN PROCESS</option>
+        <option value="CLOSED">CLOSED</option>
+        <option value="ON HOLD">ON HOLD</option>
+        <option value="CANCELLED">CANCELLED</option>
+      </select>
+      <div class="file-number-display imp" id="imp-file-display">—</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="imp-days-open"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">1 · Identification</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class="required">IES File Number</label>
+          <input type="text" id="i_file_number" placeholder="e.g. IMP-2024-001" oninput="document.getElementById('imp-file-display').textContent=this.value||'—'">
+        </div>
+        <div class="field"><label class="required">MAWB</label><input type="text" id="i_mawb" placeholder="e.g. 123-45678901"></div>
+        <div class="field"><label>HAWB</label><input type="text" id="i_hawb" placeholder="e.g. HBL-0001"></div>
+        <div class="field ac-wrap"><label>Airline</label>
+          <input type="text" id="i_airline" placeholder="e.g. AA, LATAM" autocomplete="off" oninput="acFilter('i_airline','airline')">
+          <div class="ac-list" id="ac_i_airline" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class="required">Origin Airport</label><input type="text" id="i_origin" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class="required">Destination Airport</label><input type="text" id="i_dest" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field ac-wrap"><label>Agent</label>
+          <input type="text" id="i_agent" placeholder="" autocomplete="off" oninput="acFilter('i_agent','agent')">
+          <div class="ac-list" id="ac_i_agent" style="display:none"></div>
+        </div>
+        <div class="field ac-wrap"><label>Customs Broker</label>
+          <input type="text" id="i_customs_broker" placeholder="" autocomplete="off" oninput="acFilter('i_customs_broker','broker')">
+          <div class="ac-list" id="ac_i_customs_broker" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-3" style="margin-bottom:10px">
+        <div class="field"><label>Cargo Type</label>
+          <div class="toggle-group">
+            <label id="i_lbl_nondg" class="active" onclick="iDG(false)"><input type="radio" name="i_dg" value="non-dg" checked><span>NON-DG</span></label>
+            <label id="i_lbl_dg" onclick="iDG(true)"><input type="radio" name="i_dg" value="dg"><span>DG</span></label>
+          </div>
+        </div>
+        <div class="field"><label>Incoterm</label>
+          <select id="i_incoterm">
+            <option value="">— select —</option>
+            <option value="DDP">DDP</option><option value="DAP">DAP</option>
+            <option value="CFR">CFR</option><option value="EXW">EXW</option>
+          </select>
+        </div>
+        <div class="field"><label>IES File</label>
+          <div class="toggle-group">
+            <label id="i_lbl_ies_yes" class="active" onclick="iT('i_lbl_ies_yes','i_lbl_ies_no')"><input type="radio" name="i_ies" value="yes" checked><span>YES</span></label>
+            <label id="i_lbl_ies_no" onclick="iT('i_lbl_ies_no','i_lbl_ies_yes')"><input type="radio" name="i_ies" value="no"><span>NO</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="dg-subtype-row" id="i_dg_row">
+        <span class="dg-row-label">⚠ DG TYPE:</span>
+        <div class="toggle-group" style="max-width:180px">
+          <label id="i_lbl_pax" class="active-dg" onclick="iDGT('pax')"><input type="radio" name="i_dgsub" value="pax" checked><span>PAX</span></label>
+          <label id="i_lbl_cao" onclick="iDGT('cao')"><input type="radio" name="i_dgsub" value="cao"><span>CAO</span></label>
+        </div>
+        <div class="field" style="max-width:300px;margin-left:12px">
+          <label style="color:var(--dg-text)">DG Description / UN Number</label>
+          <input type="text" id="i_dg_desc" placeholder="e.g. Lithium Batteries UN3481">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">2 · Shipper & Consignee</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-2" style="margin-bottom:10px">
+        <div class="field ac-wrap"><label class="required">Shipper</label>
+          <input type="text" id="i_shipper" placeholder="Company name" autocomplete="off" oninput="acFilter('i_shipper','shipper')">
+          <div class="ac-list" id="ac_i_shipper" style="display:none"></div>
+        </div>
+        <div class="field ac-wrap"><label class="required">Consignee</label>
+          <input type="text" id="i_consignee" placeholder="Company name" autocomplete="off" oninput="acFilter('i_consignee','consignee')">
+          <div class="ac-list" id="ac_i_consignee" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-4">
+        <div class="field ac-wrap"><label>Trucking Company</label>
+          <input type="text" id="i_trucker" placeholder="" autocomplete="off" oninput="acFilter('i_trucker','trucker')">
+          <div class="ac-list" id="ac_i_trucker" style="display:none"></div>
+        </div>
+        <div class="field"><label>Contact</label><input type="text" id="i_contact" placeholder=""></div>
+        <div class="field"><label>Phone</label><input type="text" id="i_phone" placeholder=""></div>
+        <div class="field"><label>CFS Station</label><input type="text" id="i_cfs" placeholder="e.g. MIA, GRU"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">3 · Dates & Scheduling</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-5" style="margin-bottom:10px">
+        <div class="field"><label>P/U Date</label><input type="text" id="i_pu_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>P/U From</label><input type="text" id="i_pu_from" placeholder="Address / city"></div>
+        <div class="field"><label>Transfer Date</label><input type="text" id="i_transfer_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>ETA</label><input type="text" id="i_eta" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>Last Free Day</label><input type="text" id="i_last_free_day" placeholder="MM/DD/YYYY" class="datepick"></div>
+      </div>
+      <div class="fields-grid cols-4">
+        <div class="field"><label>Carrier</label>
+          <select id="i_carrier_type"><option value="">— select —</option><option>FA</option><option>WWEX</option><option>UPS</option><option>EXFR</option><option>Other</option></select>
+        </div>
+        <div class="field"><label>Folder</label><input type="text" id="i_folder" placeholder=""></div>
+        <div class="field"><label>CASS Weight (kg)</label><input type="text" id="i_cass_weight" placeholder=""></div>
+        <div class="field"><label>Chargeable Weight</label><input type="text" id="i_chargeable" placeholder=""></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr">
+      <span class="section-title">4 · Flight Schedule & Routing</span>
+      <button class="add-btn" onclick="addLeg('i')">+ Add Leg</button>
+    </div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr 1fr;gap:8px;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:10px;font-weight:500;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase">
+        <span>Leg</span><span>Flight #</span><span>From</span><span>To</span><span>Date / ETA</span>
+      </div>
+      <div id="i_legs"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr">
+      <span class="section-title">5 · Dimensions & Weight</span>
+      <button class="add-btn" onclick="addVolume('i')">+ Add Volume</button>
+    </div>
+    <div class="section-body">
+      <div class="vol-legend">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent)"></span>cm / kg</span>
+        <span style="color:var(--border-strong)">|</span>
+        <span style="display:flex;align-items:center;gap:5px;color:var(--imp)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--imp)"></span>in / lbs — auto-convert</span>
+      </div>
+      <div class="col-hdr-vols">
+        <span>Pcs</span><span>L (cm)</span><span>W (cm)</span><span>H (cm)</span>
+        <span class="in-hdr">L (in)</span><span class="in-hdr">W (in)</span><span class="in-hdr">H (in)</span>
+        <span>Wt (kg)</span><span class="in-hdr">Wt (lbs)</span>
+      </div>
+      <div id="i_vols"></div>
+      <div class="totals-bar">
+        <span class="tot-item">Pieces: <strong id="i_tot_pcs">—</strong></span>
+        <span class="tot-item">Gross Wt: <strong id="i_tot_kg">—</strong></span>
+        <span class="tot-item">(<strong id="i_tot_lbs">—</strong>)</span>
+        <span class="tot-item">Volume: <strong id="i_tot_vol">—</strong></span>
+        <span class="tot-item">Vol. Wt: <strong id="i_tot_volwt">—</strong></span>
+        <span class="chargeable-badge imp" id="i_chargeable_badge">✈️ Est. Chargeable: —</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr">
+      <span class="section-title">6 · Process Checklist</span>
+      <span id="i_chk_pct" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)">0 / 12</span>
+    </div>
+    <div class="section-body">
+      <div class="checklist-grid" id="i_checklist"></div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="i_prog_fill" style="width:0%"></div></div>
+        <div class="progress-info"><span id="i_prog_text">0 of 12 steps completed</span><span id="i_prog_pct">0%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">7 · Station Fees</span></div>
+    <div class="section-body">
+      <div class="fees-grid">
+        <div class="fee-row"><span class="fee-label">CFS Station ($)</span><input class="fee-input" type="text" id="i_fee_cfs" placeholder="0.00"></div>
+        <div class="fee-row"><span class="fee-label">Airline Fee ($)</span><input class="fee-input" type="text" id="i_fee_airline" placeholder="0.00"></div>
+        <div class="fee-row"><span class="fee-label">Storage ($)</span><input class="fee-input" type="text" id="i_fee_storage" placeholder="0.00"></div>
+        <div class="fee-row"><span class="fee-label">Waiting Time ($)</span><input class="fee-input" type="text" id="i_fee_waiting" placeholder="0.00"></div>
+        <div class="fee-row"><span class="fee-label">Magic / Customs ($)</span><input class="fee-input" type="text" id="i_fee_customs" placeholder="0.00"></div>
+        <div class="fee-row"><span class="fee-label">Other ($)</span><input class="fee-input" type="text" id="i_fee_other" placeholder="0.00"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">8 · Comments / Notes</span></div>
+    <div class="section-body">
+      <textarea id="i_comments" placeholder="Special instructions, customs notes, history..." style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">9 · File Revenue & Profit</span></div>
+    <div class="section-body">
+      <div class="revenue-grid">
+        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="number" id="i_revenue" placeholder="0.00" step="0.01"></div>
+        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="number" id="i_profit" placeholder="0.00" step="0.01"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-back imp" onclick="showScreen('list')">← Back to List</button>
+    <button class="btn btn-primary imp" onclick="saveProcess('imp')">💾 Save Process</button>
+    <button class="btn" onclick="exportPDF('imp')">↓ PDF</button>
+    <button class="btn btn-del" onclick="deleteCurrentProcess('imp')">🗑 Delete</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════════════
+const SUPA_URL = 'https://swssbmixursxuslgssql.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c3NibWl4dXJzeHVzbGdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjUxNDIsImV4cCI6MjA5MjkwMTE0Mn0.QPuGtqjWC5ZXkibf69OC2rBCDvkIZKDLlyQXlCpvVCw';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+// cache local para performance
+let _processesCache = [];
+let _companiesCache = [];
+
+function setSyncStatus(state, msg) {
+  const el = document.getElementById('sync-status');
+  el.className = 'sync-status ' + state;
+  el.textContent = msg;
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let currentExpKey = null, currentImpKey = null;
+let eLegs = 0, eVols = 0, iLegs = 0, iVols = 0;
+let ePUMode = 'same';
+
+const EXP_CHECKLIST = [
+  {key:'nomination',    label:'Nomination'},
+  {key:'cargo_ready',   label:'Cargo Readiness'},
+  {key:'airline_book',  label:'Airline Booking'},
+  {key:'pickup_sched',  label:'Pickup Scheduled'},
+  {key:'pickup_conf',   label:'Pickup Confirmed'},
+  {key:'drop_inst',     label:'Drop Instructions Sent to Trucker'},
+  {key:'drop_reminder', label:'Drop Reminder'},
+  {key:'airline_cargo', label:'Airline Has the Cargo'},
+  {key:'prealert',      label:'Pre-alert Sent'},
+  {key:'departure_date',label:'Departure Date'},
+  {key:'dn_sent',       label:'DN Sent'},
+  {key:'files_list',    label:'Files List'},
+  {key:'files_log',     label:'Files Log'},
+  {key:'file_closed',   label:'File Closed'},
+];
+const IMP_CHECKLIST = [
+  {key:'nomination',      label:'Nomination'},
+  {key:'cargo_arrival',   label:'Cargo Arrival'},
+  {key:'customs_clear',   label:'Customs Clearance'},
+  {key:'payment_fees',    label:'Payment of Fees'},
+  {key:'recovery_sched',  label:'Recovery Scheduling'},
+  {key:'cargo_on_hand',   label:'Cargo on Hand'},
+  {key:'consignee_deliv', label:'Consignee Delivery Scheduling'},
+  {key:'est_delivery',    label:'Estimated Delivery Date to Consignee'},
+  {key:'cargo_del_conf',  label:'Cargo Delivery Confirmation'},
+  {key:'pod_sent',        label:'POD Sent to Agent'},
+  {key:'dn_sent',         label:'DN Sent to Agent'},
+  {key:'file_closed',     label:'File Closed'},
+];
+const NTB_CLASSES = ['ntb-0','ntb-1','ntb-2','ntb-3'];
+
+const E_FIELDS = [
+  'e_file_number','e_mawb','e_hawb','e_airline','e_origin','e_dest','e_agent','e_reference',
+  'e_shipper','e_shipper_address','e_consignee','e_consignee_address',
+  'e_cutoff','e_departure','e_cass_weight','e_chargeable','e_airfreight_cost','e_bsource_other',
+  'e_pu_from_address','e_pu_date','e_transfer_date','e_trucker','e_cfs',
+  'e_inland_cost','e_cfs_cost','e_declared_value','e_hts_code','e_aes_itn','e_dg_desc',
+  'e_revenue','e_profit','e_comments'
+];
+const I_FIELDS = [
+  'i_file_number','i_mawb','i_hawb','i_airline','i_origin','i_dest','i_agent','i_customs_broker',
+  'i_shipper','i_consignee','i_trucker','i_contact','i_phone','i_cfs',
+  'i_pu_date','i_pu_from','i_transfer_date','i_eta','i_last_free_day',
+  'i_carrier_type','i_folder','i_cass_weight','i_chargeable','i_incoterm',
+  'i_dg_desc','i_revenue','i_profit','i_comments',
+  'i_fee_cfs','i_fee_airline','i_fee_storage','i_fee_waiting','i_fee_customs','i_fee_other'
+];
+
+// ═══════════════════════════════════════════
+// SUPABASE — PROCESSES
+// ═══════════════════════════════════════════
+async function sbLoadProcesses() {
+  showLoading('Loading processes…');
+  const { data, error } = await db.from('processes').select('*').order('saved_at', { ascending: false });
+  hideLoading();
+  if (error) { setSyncStatus('err','❌ DB Error'); console.error(error); return []; }
+  setSyncStatus('ok','☁️ Cloud Connected');
+  _processesCache = (data || []).map(row => ({
+    key:       row.key,
+    mode:      row.mode,
+    status:    row.status,
+    data:      row.data,
+    savedAt:   new Date(row.saved_at).getTime(),
+    createdAt: new Date(row.created_at).getTime(),
+    _id:       row.id
+  }));
+  return _processesCache;
+}
+
+async function sbSaveProcess(record) {
+  setSyncStatus('saving','💾 Saving…');
+  const payload = {
+    key:      record.key,
+    mode:     record.mode,
+    status:   record.status,
+    data:     record.data,
+    saved_at: new Date(record.savedAt).toISOString()
+  };
+  const { error } = await db.from('processes').upsert(payload, { onConflict: 'key' });
+  if (error) { setSyncStatus('err','❌ Save failed'); console.error(error); return false; }
+  setSyncStatus('ok','☁️ Saved to Cloud');
+  // update cache
+  const idx = _processesCache.findIndex(p => p.key === record.key);
+  if (idx >= 0) _processesCache[idx] = record; else _processesCache.unshift(record);
+  return true;
+}
+
+async function sbDeleteProcess(key) {
+  const { error } = await db.from('processes').delete().eq('key', key);
+  if (error) { setSyncStatus('err','❌ Delete failed'); console.error(error); return false; }
+  _processesCache = _processesCache.filter(p => p.key !== key);
+  setSyncStatus('ok','☁️ Cloud Connected');
+  return true;
+}
+
+// ═══════════════════════════════════════════
+// SUPABASE — COMPANIES
+// ═══════════════════════════════════════════
+async function sbLoadCompanies() {
+  const { data, error } = await db.from('companies').select('*').order('name');
+  if (error) { console.error(error); return []; }
+  _companiesCache = (data || []).map(r => ({ id: r.id, name: r.name, type: r.type, contact: r.contact, phone: r.phone, notes: r.notes }));
+  return _companiesCache;
+}
+
+async function sbSaveCompany(company) {
+  const { data, error } = await db.from('companies').insert({
+    name: company.name, type: company.type,
+    contact: company.contact, phone: company.phone, notes: company.notes
+  }).select().single();
+  if (error) { console.error(error); return null; }
+  _companiesCache.push({ ...company, id: data.id });
+  return data;
+}
+
+async function sbDeleteCompany(id) {
+  const { error } = await db.from('companies').delete().eq('id', id);
+  if (error) { console.error(error); return false; }
+  _companiesCache = _companiesCache.filter(c => c.id !== id);
+  return true;
+}
+
+function getCompanies() { return _companiesCache; }
+
+// ═══════════════════════════════════════════
+// MIGRATION — localStorage → Supabase
+// ═══════════════════════════════════════════
+function getLocalProcesses() {
+  return Object.keys(localStorage)
+    .filter(k => k.startsWith('afm_proc_'))
+    .map(k => JSON.parse(localStorage.getItem(k)))
+    .filter(Boolean);
+}
+
+function checkMigrationNeeded() {
+  const local = getLocalProcesses();
+  const banner = document.getElementById('migrate-banner');
+  if (local.length > 0) banner.style.display = 'flex'; else banner.style.display = 'none';
+}
+
+async function migrateLocalToSupabase() {
+  const local = getLocalProcesses();
+  if (!local.length) { alert('No local data to migrate.'); return; }
+  if (!confirm(`Migrate ${local.length} local process(es) to the cloud?\n\nThis is safe — local copies will be kept until you clear the browser.`)) return;
+  showLoading(`Migrating ${local.length} processes…`);
+  let ok = 0, fail = 0;
+  for (const record of local) {
+    const payload = { key: record.key, mode: record.mode, status: record.status, data: record.data,
+      saved_at: record.savedAt ? new Date(record.savedAt).toISOString() : new Date().toISOString(),
+      created_at: record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString()
+    };
+    const { error } = await db.from('processes').upsert(payload, { onConflict: 'key' });
+    if (error) { console.error(error); fail++; } else ok++;
+  }
+  hideLoading();
+  alert(`Migration complete!\n✅ ${ok} migrated\n${fail > 0 ? '❌ '+fail+' failed' : ''}`);
+  await sbLoadProcesses();
+  document.getElementById('migrate-banner').style.display = 'none';
+  renderTable();
+}
+
+function dismissMigrate() { document.getElementById('migrate-banner').style.display = 'none'; }
+
+// ═══════════════════════════════════════════
+// LOADING OVERLAY
+// ═══════════════════════════════════════════
+function showLoading(msg='Loading…') {
+  document.getElementById('loading-text').textContent = msg;
+  document.getElementById('loading-overlay').classList.add('show');
+}
+function hideLoading() { document.getElementById('loading-overlay').classList.remove('show'); }
+
+// ═══════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════
+async function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if (name==='list') { document.getElementById('tab-list').classList.add('active'); await sbLoadProcesses(); renderTable(); checkMigrationNeeded(); }
+  if (name==='dash') { document.getElementById('tab-dash').classList.add('active'); await sbLoadProcesses(); renderDashboard(); }
+  closeAllAC();
+}
+function newProcess(mode) {
+  if (mode==='exp') { resetForm('exp'); currentExpKey=null; showScreenDirect('exp'); document.getElementById('tab-exp-new').classList.add('active'); }
+  else              { resetForm('imp'); currentImpKey=null; showScreenDirect('imp'); document.getElementById('tab-imp-new').classList.add('active'); }
+}
+function showScreenDirect(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  closeAllAC();
+}
+
+// ═══════════════════════════════════════════
+// DATE PICKERS
+// ═══════════════════════════════════════════
+function initDatePickers() {
+  document.querySelectorAll('.datepick').forEach(el => { if (!el._flatpickr) flatpickr(el,{dateFormat:'m/d/Y',allowInput:true}); });
+  document.querySelectorAll('.datepick-dt').forEach(el => { if (!el._flatpickr) flatpickr(el,{dateFormat:'m/d/Y H:i',enableTime:true,time_24hr:true,allowInput:true}); });
+}
+
+// ═══════════════════════════════════════════
+// TOGGLES
+// ═══════════════════════════════════════════
+function eT(on,off){document.getElementById(on).classList.add('active');document.getElementById(off).classList.remove('active');}
+function iT(on,off){document.getElementById(on).classList.add('active');document.getElementById(off).classList.remove('active');}
+function eDG(isDG){const r=document.getElementById('e_dg_row');if(isDG){document.getElementById('e_lbl_dg').classList.add('active-dg');document.getElementById('e_lbl_nondg').classList.remove('active');r.classList.add('visible');}else{document.getElementById('e_lbl_nondg').classList.add('active');document.getElementById('e_lbl_dg').classList.remove('active','active-dg');r.classList.remove('visible');}}
+function eDGT(t){document.getElementById('e_lbl_pax').className=t==='pax'?'active-dg':'';document.getElementById('e_lbl_cao').className=t==='cao'?'active-dg':'';}
+function eLV(yes){document.getElementById('e_lbl_lv_yes').className=yes?'active':'';document.getElementById('e_lbl_lv_no').className=!yes?'active':'';document.getElementById('e_lv_fields').classList.toggle('visible',!yes);}
+function iDG(isDG){const r=document.getElementById('i_dg_row');if(isDG){document.getElementById('i_lbl_dg').classList.add('active-dg');document.getElementById('i_lbl_nondg').classList.remove('active');r.classList.add('visible');}else{document.getElementById('i_lbl_nondg').classList.add('active');document.getElementById('i_lbl_dg').classList.remove('active','active-dg');r.classList.remove('visible');}}
+function iDGT(t){document.getElementById('i_lbl_pax').className=t==='pax'?'active-dg':'';document.getElementById('i_lbl_cao').className=t==='cao'?'active-dg':'';}
+function setPUFrom(mode){ePUMode=mode;document.getElementById('e_pu_same_btn').classList.toggle('active',mode==='same');document.getElementById('e_pu_other_btn').classList.toggle('active',mode==='other');document.getElementById('e_pu_other_wrap').style.display=mode==='other'?'block':'none';}
+function selectCarrier(p,val){document.querySelectorAll('#e_carrier_wrap .carrier-btn').forEach(b=>b.classList.toggle('selected',b.dataset.val===val));document.getElementById('e_carrier_val').value=val;}
+function selectBSource(p,val){document.querySelectorAll('#e_bsource_wrap .bsource-btn').forEach(b=>b.classList.toggle('selected',b.dataset.val===val));document.getElementById('e_bsource_val').value=val;document.getElementById('e_bsource_other_wrap').classList.toggle('visible',val==='Other');}
+
+// ═══════════════════════════════════════════
+// AUTOCOMPLETE
+// ═══════════════════════════════════════════
+function closeAllAC(){document.querySelectorAll('.ac-list').forEach(el=>el.style.display='none');}
+function acFilter(fieldId,type){
+  const val=document.getElementById(fieldId).value.toLowerCase().trim();
+  const listEl=document.getElementById('ac_'+fieldId);
+  if(!listEl)return;
+  const companies=getCompanies().filter(c=>(type==='any'||c.type===type)&&c.name.toLowerCase().includes(val));
+  if(!val||companies.length===0){listEl.style.display='none';return;}
+  listEl.innerHTML=companies.map(c=>`<div class="ac-item" onmousedown="acSelect('${fieldId}','${c.name.replace(/'/g,"\\'")}')"><span class="ac-item-name">${c.name}</span><span class="ac-item-type">${c.type}</span></div>`).join('');
+  listEl.style.display='block';
+}
+function acSelect(fieldId,name){const el=document.getElementById(fieldId);if(el)el.value=name;const listEl=document.getElementById('ac_'+fieldId);if(listEl)listEl.style.display='none';}
+document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))closeAllAC();});
+
+// ═══════════════════════════════════════════
+// COMPANIES
+// ═══════════════════════════════════════════
+async function openCompanies(){
+  document.getElementById('modal-companies').classList.add('open');
+  await sbLoadCompanies();
+  renderCompanyList();
+}
+function closeCompanies(){document.getElementById('modal-companies').classList.remove('open');}
+async function saveCompany(){
+  const name=document.getElementById('cm_name').value.trim();
+  if(!name){alert('Company name is required.');return;}
+  await sbSaveCompany({name,type:document.getElementById('cm_type').value,contact:document.getElementById('cm_contact').value.trim(),phone:document.getElementById('cm_phone').value.trim(),notes:document.getElementById('cm_notes').value.trim()});
+  ['cm_name','cm_contact','cm_phone','cm_notes'].forEach(id=>document.getElementById(id).value='');
+  renderCompanyList();
+}
+async function deleteCompany(id){
+  const company=getCompanies().find(c=>c.id===id);
+  const name=company?.name||'this company';
+  if(!confirm(`⚠️ REMOVE COMPANY\n\n"${name}"\n\nAre you sure you want to remove this company?`))return;
+  await sbDeleteCompany(id);
+  renderCompanyList();
+}
+function renderCompanyList(){
+  const companies=getCompanies();
+  const el=document.getElementById('company-list');
+  if(!companies.length){el.innerHTML='<div style="font-size:12px;color:var(--text-hint);text-align:center;padding:16px;">No companies registered yet.</div>';return;}
+  el.innerHTML=companies.map(c=>`<div class="company-list-item"><span class="cli-name">${c.name}</span><span class="cli-type">${c.type}</span>${c.contact?`<span style="font-size:11px;color:var(--text-hint)">${c.contact}</span>`:''}<button class="cli-del" onclick="deleteCompany(${c.id})">✕ Remove</button></div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// DAYS / BADGES / ALERTS
+// ═══════════════════════════════════════════
+function daysOpen(createdAt){if(!createdAt)return null;return Math.floor((Date.now()-new Date(createdAt).getTime())/86400000);}
+function daysOpenBadge(days){if(days===null||days===undefined)return '';const cls=days<=7?'days-fresh':days<=21?'days-mid':'days-old';return `<span class="days-badge ${cls}">${days}d open</span>`;}
+function getNextTask(data,mode){const list=mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;const checks=data.checklist||{};for(let i=0;i<list.length;i++){if(!checks[list[i].key]?.checked)return{label:list[i].label,index:i};}return null;}
+function nextTaskBadge(data,mode){const nt=getNextTask(data,mode);if(!nt)return`<span class="next-task-badge ntb-done">✓ All Done</span>`;return`<span class="next-task-badge ${NTB_CLASSES[nt.index%4]}" title="${nt.label}">${nt.label}</span>`;}
+function statusPillClass(s){if(s==='CLOSED')return'closed';if(s==='IN PROCESS')return'inprocess';if(s==='ON HOLD')return'onhold';if(s==='CANCELLED')return'cancelled';return'new';}
+function parseDate(str){if(!str)return null;const d=new Date(str.replace(/(\d{2})\/(\d{2})\/(\d{4})/,'$3-$1-$2'));return isNaN(d)?null:d;}
+function buildAlerts(processes){
+  const alerts=[],today=new Date();today.setHours(0,0,0,0);
+  processes.forEach(p=>{
+    const d=p.data,file=d.e_file_number||d.i_file_number||'—';
+    if(p.mode==='exp'&&d.e_cutoff){const co=parseDate(d.e_cutoff.substring(0,10));if(co){const diff=Math.ceil((co-today)/86400000);if(diff>=0&&diff<=2)alerts.push({type:diff===0?'danger':'warn',icon:'✈️',msg:`[${file}] Cut Off ${diff===0?'TODAY':'in '+diff+'d'}: ${d.e_cutoff}`});}}
+    if(p.mode==='imp'&&d.i_last_free_day){const lfd=parseDate(d.i_last_free_day);if(lfd){const diff=Math.ceil((lfd-today)/86400000);if(diff>=0&&diff<=3)alerts.push({type:diff<=1?'danger':'warn',icon:'📦',msg:`[${file}] Last Free Day ${diff===0?'TODAY':'in '+diff+'d'}: ${d.i_last_free_day}`});if(diff<0)alerts.push({type:'danger',icon:'🔴',msg:`[${file}] Last Free Day PASSED ${Math.abs(diff)}d ago!`});}}
+    if(p.mode==='imp'&&d.i_eta&&p.status!=='CLOSED'){const eta=parseDate(d.i_eta);if(eta&&eta<today){const diff=Math.ceil((today-eta)/86400000);if(diff>=1)alerts.push({type:'info',icon:'🛬',msg:`[${file}] Arrived ${diff}d ago — still OPEN`});}}
+    if(p.mode==='exp'&&d.e_departure&&p.status!=='CLOSED'){const dep=parseDate(d.e_departure);if(dep&&dep<today){const diff=Math.ceil((today-dep)/86400000);if(diff>=3)alerts.push({type:'info',icon:'🛫',msg:`[${file}] Departed ${diff}d ago — still OPEN`});}}
+  });
+  return alerts;
+}
+
+// ═══════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════
+function renderDashboard(){
+  const processes=_processesCache;
+  document.getElementById('dash-updated').textContent='Updated '+new Date().toLocaleTimeString();
+  const exps=processes.filter(p=>p.mode==='exp'),imps=processes.filter(p=>p.mode==='imp');
+  const open=processes.filter(p=>p.status!=='CLOSED'&&p.status!=='CANCELLED').length;
+  const closed=processes.filter(p=>p.status==='CLOSED').length;
+  const totalRevenue=processes.reduce((s,p)=>s+(parseFloat(p.data.e_revenue||p.data.i_revenue)||0),0);
+  const totalProfit=processes.reduce((s,p)=>s+(parseFloat(p.data.e_profit||p.data.i_profit)||0),0);
+  document.getElementById('dash-kpis').innerHTML=`
+    <div class="dash-card"><div class="dash-card-label">Total Processes</div><div class="dash-card-value">${processes.length}</div><div class="dash-card-sub">${exps.length} exp · ${imps.length} imp</div></div>
+    <div class="dash-card"><div class="dash-card-label">Open Files</div><div class="dash-card-value warn">${open}</div><div class="dash-card-sub">Active processes</div></div>
+    <div class="dash-card"><div class="dash-card-label">Closed Files</div><div class="dash-card-value green">${closed}</div><div class="dash-card-sub">Completed</div></div>
+    <div class="dash-card"><div class="dash-card-label">Completion Rate</div><div class="dash-card-value accent">${processes.length?Math.round((closed/processes.length)*100):0}%</div><div class="dash-card-sub">of all processes</div></div>`;
+  const alerts=buildAlerts(processes);
+  document.getElementById('dash-alerts').innerHTML=alerts.length?alerts.map(a=>`<div class="alert-item ${a.type}"><span class="alert-icon">${a.icon}</span><span>${a.msg}</span></div>`).join(''):'<div class="no-alerts">✅ No urgent alerts right now.</div>';
+  const recent=[...processes].sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)).slice(0,8);
+  document.getElementById('dash-recent').innerHTML=recent.map(p=>{const d=p.data,file=d.e_file_number||d.i_file_number||'—',route=(d.e_origin||d.i_origin||'?')+'→'+(d.e_dest||d.i_dest||'?');return`<tr onclick="openProcess('${p.mode}','${p.key}')"><td><span class="pill pill-${p.mode}">${p.mode.toUpperCase()}</span></td><td class="mono">${file}</td><td class="route-cell">${route}</td><td><span class="pill pill-${statusPillClass(p.status)}">${p.status}</span></td><td>${daysOpenBadge(daysOpen(p.createdAt))}</td></tr>`;}).join('');
+  const fmt=v=>'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const expRev=exps.reduce((s,p)=>s+(parseFloat(p.data.e_revenue)||0),0);
+  const impRev=imps.reduce((s,p)=>s+(parseFloat(p.data.i_revenue)||0),0);
+  const expPro=exps.reduce((s,p)=>s+(parseFloat(p.data.e_profit)||0),0);
+  const impPro=imps.reduce((s,p)=>s+(parseFloat(p.data.i_profit)||0),0);
+  document.getElementById('dash-revenue').innerHTML=`
+    <div class="dash-card"><div class="dash-card-label">Total Revenue</div><div class="dash-card-value accent">${fmt(totalRevenue)}</div></div>
+    <div class="dash-card"><div class="dash-card-label">Total Profit</div><div class="dash-card-value green">${fmt(totalProfit)}</div></div>
+    <div class="dash-card"><div class="dash-card-label">Export Revenue</div><div class="dash-card-value accent">${fmt(expRev)}</div><div class="dash-card-sub">Profit: ${fmt(expPro)}</div></div>
+    <div class="dash-card"><div class="dash-card-label">Import Revenue</div><div class="dash-card-value imp">${fmt(impRev)}</div><div class="dash-card-sub">Profit: ${fmt(impPro)}</div></div>`;
+}
+
+// ═══════════════════════════════════════════
+// LEGS / VOLUMES
+// ═══════════════════════════════════════════
+const LEG_NAMES=['Leg 1','Leg 2','Leg 3','Leg 4','Leg 5','Leg 6','Leg 7','Leg 8'];
+function addLeg(p,data){
+  const isE=p==='e',idx=isE?eLegs:iLegs;
+  if(isE)eLegs++;else iLegs++;
+  const div=document.createElement('div');
+  div.className='route-stop';div.id=p+'_leg_'+idx;
+  const fi=(id,ph,st='')=>`<input type="text" id="${id}" placeholder="${ph}" value="${(data&&data[id])||''}" style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 8px;outline:none;width:100%;color:var(--text);${st}">`;
+  div.innerHTML=`<span class="route-leg-label">${LEG_NAMES[idx]||'Leg '+(idx+1)}</span>${fi(p+'_lf_'+idx,'e.g. AA 900')}${fi(p+'_lfr_'+idx,'IATA','text-transform:uppercase;font-weight:500;color:var(--accent)')}${fi(p+'_lto_'+idx,'IATA','text-transform:uppercase;font-weight:500;color:var(--accent)')}<div style="display:flex;gap:6px;align-items:center">${fi(p+'_ld_'+idx,'MM/DD/YYYY')}${idx>0?`<button class="remove-btn" onclick="removeLeg('${p}',${idx})">✕</button>`:''}</div>`;
+  document.getElementById(p+'_legs').appendChild(div);
+  const legDate=document.getElementById(p+'_ld_'+idx);
+  if(legDate)flatpickr(legDate,{dateFormat:'m/d/Y',allowInput:true});
+}
+function removeLeg(p,idx){document.getElementById(p+'_leg_'+idx)?.remove();}
+
+function addVolume(p,vdata){
+  const isE=p==='e',idx=isE?eVols:iVols;
+  if(isE)eVols++;else iVols++;
+  const d=vdata||{};
+  const div=document.createElement('div');
+  div.className='volume-row';div.id=p+'_vol_'+idx;
+  div.innerHTML=`<div class="volume-header"><span class="volume-label">Volume ${idx+1}</span>${idx>0?`<button class="remove-btn" onclick="removeVolume('${p}',${idx})">Remove</button>`:''}</div>
+    <div class="volume-fields">
+      <input type="number" min="1" value="${d[p+'_vp_'+idx]||1}" id="${p}_vp_${idx}" class="vi" oninput="calcTotals('${p}')">
+      <input type="number" step="0.1" id="${p}_vlcm_${idx}" class="vi" value="${d[p+'_vlcm_'+idx]||''}" placeholder="0" oninput="onCmChange('${p}',${idx},'l')">
+      <input type="number" step="0.1" id="${p}_vwcm_${idx}" class="vi" value="${d[p+'_vwcm_'+idx]||''}" placeholder="0" oninput="onCmChange('${p}',${idx},'w')">
+      <input type="number" step="0.1" id="${p}_vhcm_${idx}" class="vi" value="${d[p+'_vhcm_'+idx]||''}" placeholder="0" oninput="onCmChange('${p}',${idx},'h')">
+      <input type="number" step="0.01" id="${p}_vlin_${idx}" class="vi vi-in" value="${d[p+'_vlin_'+idx]||''}" placeholder="0.00" oninput="onInChange('${p}',${idx},'l')">
+      <input type="number" step="0.01" id="${p}_vwin_${idx}" class="vi vi-in" value="${d[p+'_vwin_'+idx]||''}" placeholder="0.00" oninput="onInChange('${p}',${idx},'w')">
+      <input type="number" step="0.01" id="${p}_vhin_${idx}" class="vi vi-in" value="${d[p+'_vhin_'+idx]||''}" placeholder="0.00" oninput="onInChange('${p}',${idx},'h')">
+      <input type="number" step="0.01" id="${p}_vkg_${idx}" class="vi" value="${d[p+'_vkg_'+idx]||''}" placeholder="0.00" oninput="onKgChange('${p}',${idx})">
+      <input type="number" step="0.01" id="${p}_vlbs_${idx}" class="vi vi-in" value="${d[p+'_vlbs_'+idx]||''}" placeholder="0.00" oninput="onLbsChange('${p}',${idx})">
+    </div>`;
+  document.getElementById(p+'_vols').appendChild(div);
+  calcTotals(p);
+}
+function removeVolume(p,idx){document.getElementById(p+'_vol_'+idx)?.remove();calcTotals(p);}
+function g(id){return parseFloat(document.getElementById(id)?.value)||0;}
+function flashConvert(el){el.classList.remove('vi-converted');void el.offsetWidth;el.classList.add('vi-converted');setTimeout(()=>el.classList.remove('vi-converted'),800);}
+function onCmChange(p,i,dim){const v=parseFloat(document.getElementById(p+'_v'+dim+'cm_'+i)?.value);const inEl=document.getElementById(p+'_v'+dim+'in_'+i);if(inEl){inEl.value=(!isNaN(v)&&v>0)?(v/2.54).toFixed(2):'';if(!isNaN(v)&&v>0)flashConvert(inEl);}calcTotals(p);}
+function onInChange(p,i,dim){const v=parseFloat(document.getElementById(p+'_v'+dim+'in_'+i)?.value);const cmEl=document.getElementById(p+'_v'+dim+'cm_'+i);if(cmEl){cmEl.value=(!isNaN(v)&&v>0)?(v*2.54).toFixed(2):'';if(!isNaN(v)&&v>0)flashConvert(cmEl);}calcTotals(p);}
+function onKgChange(p,i){const v=parseFloat(document.getElementById(p+'_vkg_'+i)?.value);const lbsEl=document.getElementById(p+'_vlbs_'+i);if(lbsEl){lbsEl.value=(!isNaN(v)&&v>0)?(v*2.20462).toFixed(2):'';if(!isNaN(v)&&v>0)flashConvert(lbsEl);}calcTotals(p);}
+function onLbsChange(p,i){const v=parseFloat(document.getElementById(p+'_vlbs_'+i)?.value);const kgEl=document.getElementById(p+'_vkg_'+i);if(kgEl){kgEl.value=(!isNaN(v)&&v>0)?(v/2.20462).toFixed(2):'';if(!isNaN(v)&&v>0)flashConvert(kgEl);}calcTotals(p);}
+function calcTotals(p){
+  const isE=p==='e',cnt=isE?eVols:iVols;
+  let pcs=0,grossKg=0,volCm3=0;
+  for(let i=0;i<cnt;i++){if(!document.getElementById(p+'_vol_'+i))continue;pcs+=parseInt(document.getElementById(p+'_vp_'+i)?.value)||0;grossKg+=g(p+'_vkg_'+i);const l=g(p+'_vlcm_'+i),w=g(p+'_vwcm_'+i),h=g(p+'_vhcm_'+i);volCm3+=l*w*h*(parseInt(document.getElementById(p+'_vp_'+i)?.value)||0);}
+  const volM3=volCm3/1000000,volWeightKg=volCm3/6000,chargeableKg=Math.max(grossKg,volWeightKg);
+  const sfx=isE?'e':'i';
+  document.getElementById(sfx+'_tot_pcs').textContent=pcs>0?pcs:'—';
+  document.getElementById(sfx+'_tot_kg').textContent=grossKg>0?grossKg.toFixed(2)+' kg':'—';
+  document.getElementById(sfx+'_tot_lbs').textContent=grossKg>0?(grossKg*2.20462).toFixed(2)+' lbs':'—';
+  document.getElementById(sfx+'_tot_vol').textContent=volM3>0?volM3.toFixed(4)+' m³':'—';
+  document.getElementById(sfx+'_tot_volwt').textContent=volWeightKg>0?volWeightKg.toFixed(2)+' kg vol.':'—';
+  const badge=document.getElementById(sfx+'_chargeable_badge');
+  if(chargeableKg>0){const basis=grossKg>=volWeightKg?'Gross':'Vol.';badge.textContent=`✈️ Est. Chargeable: ${chargeableKg.toFixed(2)} kg (${basis})`;}else{badge.textContent='✈️ Est. Chargeable: —';}
+}
+
+// ═══════════════════════════════════════════
+// CHECKLIST
+// ═══════════════════════════════════════════
+function buildChecklist(p){
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const container=document.getElementById(p+'_checklist');
+  container.innerHTML='';
+  items.forEach(item=>{
+    const div=document.createElement('div');
+    div.className='check-item';div.id=p+'_ci_'+item.key;
+    div.innerHTML=`<input type="checkbox" id="${p}_chk_${item.key}" onchange="onCheck('${p}','${item.key}',this)"><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${item.key}" placeholder="MM/DD/YYYY">`;
+    container.appendChild(div);
+  });
+  initDatePickers();
+}
+function onCheck(p,key,el){
+  const ci=document.getElementById(p+'_ci_'+key);
+  if(el.checked){ci.classList.add('done');const dt=document.getElementById(p+'_dt_'+key);if(dt&&!dt.value){const n=new Date();dt.value=(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0')+'/'+n.getFullYear();}}
+  else{ci.classList.remove('done');}
+  updateProgress(p);updateBadge(p);
+}
+function updateProgress(p){
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const done=items.filter(i=>document.getElementById(p+'_chk_'+i.key)?.checked).length;
+  const total=items.length,pct=Math.round((done/total)*100);
+  document.getElementById(p+'_prog_fill').style.width=pct+'%';
+  document.getElementById(p+'_prog_text').textContent=done+' of '+total+' steps completed';
+  document.getElementById(p+'_prog_pct').textContent=pct+'%';
+  document.getElementById(p+'_chk_pct').textContent=done+' / '+total;
+}
+function updateBadge(p){
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const done=items.filter(i=>document.getElementById(p+'_chk_'+i.key)?.checked).length;
+  const sel=document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
+  if(done>0&&sel.value==='NEW')sel.value='IN PROCESS';
+}
+
+// ═══════════════════════════════════════════
+// COLLECT FORM
+// ═══════════════════════════════════════════
+function collectForm(mode){
+  const p=mode==='exp'?'e':'i';
+  const fields=mode==='exp'?E_FIELDS:I_FIELDS;
+  const data={};
+  fields.forEach(id=>{const el=document.getElementById(id);if(el)data[id]=el.value;});
+  ['dg','sec','lv','dgsub'].forEach(r=>{const el=document.querySelector(`input[name="${p}_${r}"]:checked`);if(el)data[p+'_'+r]=el.value;});
+  if(mode==='imp'){const ies=document.querySelector('input[name="i_ies"]:checked');if(ies)data.i_ies=ies.value;}
+  if(mode==='exp'){data.e_carrier=document.getElementById('e_carrier_val')?.value||'FA';data.e_bsource=document.getElementById('e_bsource_val')?.value||'Airline Direct';data.e_pu_mode=ePUMode;}
+  data.legs=[];
+  const legCnt=mode==='exp'?eLegs:iLegs;
+  for(let i=0;i<legCnt;i++){if(!document.getElementById(p+'_leg_'+i))continue;data.legs.push({flight:document.getElementById(p+'_lf_'+i)?.value||'',from:document.getElementById(p+'_lfr_'+i)?.value||'',to:document.getElementById(p+'_lto_'+i)?.value||'',date:document.getElementById(p+'_ld_'+i)?.value||''});}
+  data.vols=[];
+  const volCnt=mode==='exp'?eVols:iVols;
+  for(let i=0;i<volCnt;i++){if(!document.getElementById(p+'_vol_'+i))continue;data.vols.push({pcs:document.getElementById(p+'_vp_'+i)?.value||'',lcm:document.getElementById(p+'_vlcm_'+i)?.value||'',wcm:document.getElementById(p+'_vwcm_'+i)?.value||'',hcm:document.getElementById(p+'_vhcm_'+i)?.value||'',lin:document.getElementById(p+'_vlin_'+i)?.value||'',win:document.getElementById(p+'_vwin_'+i)?.value||'',hin:document.getElementById(p+'_vhin_'+i)?.value||'',kg:document.getElementById(p+'_vkg_'+i)?.value||'',lbs:document.getElementById(p+'_vlbs_'+i)?.value||''});}
+  const items=mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+  data.checklist={};
+  items.forEach(item=>{data.checklist[item.key]={checked:document.getElementById(p+'_chk_'+item.key)?.checked||false,date:document.getElementById(p+'_dt_'+item.key)?.value||''};});
+  return data;
+}
+
+// ═══════════════════════════════════════════
+// SAVE / LOAD / DELETE
+// ═══════════════════════════════════════════
+function getAllProcesses(){ return _processesCache; }
+
+async function saveProcess(mode){
+  const data=collectForm(mode);
+  const statusEl=document.getElementById(mode==='exp'?'exp-status-select':'imp-status-select');
+  const status=statusEl?statusEl.value:'NEW';
+  const existingKey=mode==='exp'?currentExpKey:currentImpKey;
+  const key=existingKey||('afm_proc_'+mode+'_'+Date.now());
+  const existing=_processesCache.find(p=>p.key===key);
+  const record={key,mode,status,data,savedAt:Date.now(),createdAt:existing?.createdAt||Date.now()};
+  const ok=await sbSaveProcess(record);
+  if(ok){
+    if(mode==='exp')currentExpKey=key;else currentImpKey=key;
+    const toast=document.getElementById('save-toast-nav');
+    toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);
+    updateDaysOpenDisplay(mode,record.createdAt);
+  }
+}
+
+function updateDaysOpenDisplay(mode,createdAt){
+  const days=daysOpen(createdAt);
+  const el=document.getElementById(mode==='exp'?'exp-days-open':'imp-days-open');
+  if(el&&days!==null)el.innerHTML=daysOpenBadge(days);
+}
+
+function loadProcess(key){
+  const record=_processesCache.find(p=>p.key===key);
+  if(!record)return;
+  const mode=record.mode,p=mode==='exp'?'e':'i';
+  resetForm(mode);
+  const fields=mode==='exp'?E_FIELDS:I_FIELDS;
+  fields.forEach(id=>{const el=document.getElementById(id);if(el&&record.data[id]!==undefined)el.value=record.data[id];});
+  const rr=(name,val)=>{const el=document.querySelector(`input[name="${name}"][value="${val}"]`);if(el)el.checked=true;};
+  rr(p+'_dg',record.data[p+'_dg']||'non-dg');
+  rr(p+'_sec',record.data[p+'_sec']||'known');
+  if(mode==='exp'){
+    rr('e_lv',record.data.e_lv||'yes');rr('e_dgsub',record.data.e_dgsub||'pax');
+    eDG(record.data.e_dg==='dg');eLV(record.data.e_lv!=='no');
+    if(record.data.e_sec==='unknown')eT('e_lbl_unknown','e_lbl_known');else eT('e_lbl_known','e_lbl_unknown');
+    if(record.data.e_carrier)selectCarrier('e',record.data.e_carrier);
+    if(record.data.e_bsource)selectBSource('e',record.data.e_bsource);
+    setPUFrom(record.data.e_pu_mode||'same');
+  }else{
+    rr('i_ies',record.data.i_ies||'yes');rr('i_dgsub',record.data.i_dgsub||'pax');
+    iDG(record.data.i_dg==='dg');
+    if(record.data.i_ies==='no')iT('i_lbl_ies_no','i_lbl_ies_yes');else iT('i_lbl_ies_yes','i_lbl_ies_no');
+  }
+  (record.data.legs||[]).forEach((leg,i)=>addLeg(p,{[p+'_lf_'+i]:leg.flight,[p+'_lfr_'+i]:leg.from,[p+'_lto_'+i]:leg.to,[p+'_ld_'+i]:leg.date}));
+  (record.data.vols||[]).forEach((vol,i)=>addVolume(p,{[p+'_vp_'+i]:vol.pcs,[p+'_vlcm_'+i]:vol.lcm,[p+'_vwcm_'+i]:vol.wcm,[p+'_vhcm_'+i]:vol.hcm,[p+'_vlin_'+i]:vol.lin,[p+'_vwin_'+i]:vol.win,[p+'_vhin_'+i]:vol.hin,[p+'_vkg_'+i]:vol.kg,[p+'_vlbs_'+i]:vol.lbs}));
+  const items=mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+  items.forEach(item=>{const chk=record.data.checklist?.[item.key];if(chk){const cb=document.getElementById(p+'_chk_'+item.key);const dt=document.getElementById(p+'_dt_'+item.key);if(cb){cb.checked=chk.checked;if(chk.checked)document.getElementById(p+'_ci_'+item.key)?.classList.add('done');}if(dt)dt.value=chk.date||'';}});
+  updateProgress(p);
+  const statusEl=document.getElementById(mode==='exp'?'exp-status-select':'imp-status-select');
+  if(statusEl)statusEl.value=record.status||'NEW';
+  document.getElementById(mode==='exp'?'exp-file-display':'imp-file-display').textContent=record.data[p+'_file_number']||'—';
+  if(mode==='exp')currentExpKey=key;else currentImpKey=key;
+  updateDaysOpenDisplay(mode,record.createdAt);
+}
+
+function openProcess(mode,key){
+  loadProcess(key);
+  showScreenDirect(mode);
+  document.getElementById(mode==='exp'?'tab-exp-new':'tab-imp-new').classList.add('active');
+}
+
+// ── DELETE COM CONFIRMAÇÃO DUPLA ──
+async function deleteCurrentProcess(mode){
+  const key=mode==='exp'?currentExpKey:currentImpKey;
+  if(!key){showScreen('list');return;}
+  const record=_processesCache.find(p=>p.key===key);
+  const fileNum=record?.data?.e_file_number||record?.data?.i_file_number||'this process';
+  if(!confirm(`⚠️ DELETE PROCESS\n\nFile: ${fileNum}\nStatus: ${record?.status||'—'}\n\nThis action cannot be undone.\nAre you sure you want to delete?`))return;
+  if(!confirm(`🔴 FINAL CONFIRMATION\n\n"${fileNum}" will be permanently deleted.\n\nClick OK to confirm deletion.`))return;
+  await sbDeleteProcess(key);
+  if(mode==='exp')currentExpKey=null;else currentImpKey=null;
+  showScreen('list');
+}
+
+async function deleteProcessByKey(key){
+  const record=_processesCache.find(p=>p.key===key);
+  const fileNum=record?.data?.e_file_number||record?.data?.i_file_number||'this process';
+  const modeLabel=record?.mode?.toUpperCase()||'';
+  if(!confirm(`⚠️ DELETE PROCESS\n\nFile: ${fileNum} [${modeLabel}]\nStatus: ${record?.status||'—'}\n\nThis action cannot be undone.\nAre you sure you want to delete?`))return;
+  if(!confirm(`🔴 FINAL CONFIRMATION\n\n"${fileNum}" will be permanently deleted.\n\nClick OK to confirm deletion.`))return;
+  await sbDeleteProcess(key);
+  renderTable();
+}
+
+function resetForm(mode){
+  const p=mode==='exp'?'e':'i';
+  const fields=mode==='exp'?E_FIELDS:I_FIELDS;
+  fields.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById(p+'_legs').innerHTML='';
+  document.getElementById(p+'_vols').innerHTML='';
+  if(mode==='exp'){eLegs=0;eVols=0;}else{iLegs=0;iVols=0;}
+  buildChecklist(p);addLeg(p);addVolume(p);updateProgress(p);
+  if(mode==='exp'){eDG(false);eLV(true);eT('e_lbl_known','e_lbl_unknown');selectCarrier('e','FA');selectBSource('e','Airline Direct');setPUFrom('same');document.getElementById('exp-status-select').value='NEW';document.getElementById('exp-file-display').textContent='—';document.getElementById('exp-days-open').innerHTML='';}
+  else{iDG(false);iT('i_lbl_ies_yes','i_lbl_ies_no');document.getElementById('imp-status-select').value='NEW';document.getElementById('imp-file-display').textContent='—';document.getElementById('imp-days-open').innerHTML='';}
+  initDatePickers();
+}
+
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+function renderTable(){
+  const search=document.getElementById('f-search').value.toLowerCase();
+  const modeFilter=document.getElementById('f-mode').value;
+  const statusFilter=document.getElementById('f-status').value;
+  const dateFrom=document.getElementById('f-date-from').value;
+  const dateTo=document.getElementById('f-date-to').value;
+  let processes=[..._processesCache];
+  if(modeFilter)processes=processes.filter(p=>p.mode===modeFilter);
+  if(statusFilter)processes=processes.filter(p=>p.status===statusFilter);
+  if(search)processes=processes.filter(p=>JSON.stringify(p.data).toLowerCase().includes(search));
+  if(dateFrom){const df=parseDate(dateFrom);if(df)processes=processes.filter(p=>new Date(p.savedAt)>=df);}
+  if(dateTo){const dt=parseDate(dateTo);if(dt)processes=processes.filter(p=>new Date(p.savedAt)<=dt);}
+  processes.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+  const tbody=document.getElementById('table-body');
+  const empty=document.getElementById('empty-state');
+  document.getElementById('list-count').textContent=processes.length+' record'+(processes.length!==1?'s':'');
+  if(!processes.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=processes.map(p=>{
+    const d=p.data,isExp=p.mode==='exp';
+    const file=d.e_file_number||d.i_file_number||'—';
+    const mawb=d.e_mawb||d.i_mawb||'—';
+    const party=isExp?(d.e_shipper||'—'):(d.i_consignee||'—');
+    const route=(d.e_origin||d.i_origin||'?')+' → '+(d.e_dest||d.i_dest||'?');
+    const date=d.e_departure||d.i_eta||'—';
+    const pct=calcProgressPct(d,p.mode);
+    return`<tr onclick="openProcess('${p.mode}','${p.key}')">
+      <td><span class="pill pill-${p.mode}">${p.mode.toUpperCase()}</span></td>
+      <td class="mono">${file}</td><td class="mono">${mawb}</td>
+      <td style="font-weight:500">${party}</td><td class="route-cell">${route}</td>
+      <td class="mono">${date}</td>
+      <td><span class="pill pill-${statusPillClass(p.status)}">${p.status}</span></td>
+      <td>${nextTaskBadge(d,p.mode)}</td>
+      <td>${daysOpenBadge(daysOpen(p.createdAt))}</td>
+      <td><div class="prog-mini"><div class="prog-mini-fill" style="width:${pct}%"></div></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:2px">${pct}%</div></td>
+      <td><button class="delete-row-btn" onclick="event.stopPropagation();deleteProcessByKey('${p.key}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+function calcProgressPct(data,mode){const items=mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;const checks=data.checklist||{};return Math.round(items.filter(i=>checks[i.key]?.checked).length/items.length*100);}
+function clearFilters(){['f-search','f-mode','f-status','f-date-from','f-date-to'].forEach(id=>document.getElementById(id).value='');renderTable();}
+
+// ═══════════════════════════════════════════
+// EXCEL / BACKUP
+// ═══════════════════════════════════════════
+function exportExcel(){
+  const processes=getAllProcesses();
+  if(!processes.length){alert('No processes to export.');return;}
+  const rows=processes.map(p=>{const d=p.data;return{'Type':p.mode.toUpperCase(),'Status':p.status,'File Number':d.e_file_number||d.i_file_number||'','MAWB':d.e_mawb||d.i_mawb||'','HAWB':d.e_hawb||d.i_hawb||'','Airline':d.e_airline||d.i_airline||'','Origin':d.e_origin||d.i_origin||'','Destination':d.e_dest||d.i_dest||'','Shipper':d.e_shipper||d.i_shipper||'','Consignee':d.e_consignee||d.i_consignee||'','Agent':d.e_agent||d.i_agent||'','Trucker':d.e_trucker||d.i_trucker||'','Departure/ETA':d.e_departure||d.i_eta||'','Last Free Day':d.i_last_free_day||'','Booking Source':d.e_bsource||'','Inland Cost($)':d.e_inland_cost||'','CFS Cost($)':d.e_cfs_cost||'','AF Charges($)':d.e_airfreight_cost||'','Revenue($)':d.e_revenue||d.i_revenue||'','Profit($)':d.e_profit||d.i_profit||'','Progress(%)':calcProgressPct(d,p.mode)+'%','Days Open':daysOpen(p.createdAt)??'','Saved At':p.savedAt?new Date(p.savedAt).toLocaleString():''};});
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Processes');
+  XLSX.writeFile(wb,'AirFreight_Processes_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+function exportBackup(){
+  const blob=new Blob([JSON.stringify({processes:getAllProcesses(),companies:getCompanies(),exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AFM_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+}
+function importBackupClick(){document.getElementById('import-file').click();}
+async function importBackup(event){
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const backup=JSON.parse(e.target.result);
+      if(!backup.processes){alert('Invalid backup file.');return;}
+      if(!confirm(`Import ${backup.processes.length} processes and ${(backup.companies||[]).length} companies?`))return;
+      showLoading('Importing backup…');
+      for(const p of backup.processes){
+        const payload={key:p.key,mode:p.mode,status:p.status,data:p.data,saved_at:p.savedAt?new Date(p.savedAt).toISOString():new Date().toISOString(),created_at:p.createdAt?new Date(p.createdAt).toISOString():new Date().toISOString()};
+        await db.from('processes').upsert(payload,{onConflict:'key'});
+      }
+      if(backup.companies){for(const c of backup.companies){await db.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes},{onConflict:'id'});}}
+      hideLoading();
+      alert('Backup imported to cloud successfully!');
+      await sbLoadProcesses();renderTable();
+    }catch(err){hideLoading();alert('Error: '+err.message);}
+  };
+  reader.readAsText(file);event.target.value='';
+}
+
+// ═══════════════════════════════════════════
+// PDF
+// ═══════════════════════════════════════════
+function exportPDF(mode){
+  const key=mode==='exp'?currentExpKey:currentImpKey;
+  const record=key?_processesCache.find(p=>p.key===key):null;
+  const data=record?record.data:collectForm(mode);
+  const p=mode==='exp'?'e':'i';
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const file=data[p+'_file_number']||'—';
+  const status=record?.status||'NEW';
+  const days=record?daysOpen(record.createdAt):null;
+  doc.setFillColor(26,79,138);if(mode==='imp')doc.setFillColor(107,63,160);
+  doc.rect(0,0,210,22,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('AIR FREIGHT PROCESS MANAGER',14,9);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text((mode==='exp'?'AIR EXPORT':'AIR IMPORT')+' COVER SHEET',14,16);
+  doc.text('File: '+file+'  |  Status: '+status+(days!==null?'  |  Days Open: '+days:''),100,9);
+  doc.text('Generated: '+new Date().toLocaleString(),100,16);
+  doc.setTextColor(0,0,0);let y=28;
+  const section=title=>{doc.setFillColor(240,238,233);doc.rect(14,y,182,6,'F');doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(107,104,96);doc.text(title.toUpperCase(),16,y+4);doc.setTextColor(0,0,0);y+=8;};
+  const row2=pairs=>{doc.setFontSize(8);const col=91;pairs.forEach((pair,i)=>{const x=14+(i%2)*col;if(i%2===0&&i>0)y+=5;doc.setFont('helvetica','bold');doc.text(pair[0]+':',x,y);doc.setFont('helvetica','normal');doc.text(String(pair[1]||'—'),x+36,y);});y+=6;};
+  section('Identification');
+  row2([['File #',file],['MAWB',data[p+'_mawb']||'—'],['HAWB',data[p+'_hawb']||'—'],['Airline',data[p+'_airline']||'—'],['Origin',data[p+'_origin']||'—'],['Destination',data[p+'_dest']||'—'],['Agent',data[p+'_agent']||'—'],['Cargo Type',data[p+'_dg']||'—']]);
+  section('Shipper & Consignee');
+  row2([['Shipper',data.e_shipper||data.i_shipper||'—'],['Consignee',data.e_consignee||data.i_consignee||'—']]);
+  if(mode==='exp'){section('Flight Schedule');row2([['Cut Off',data.e_cutoff||'—'],['Departure',data.e_departure||'—'],['CASS Wt',data.e_cass_weight||'—'],['Chargeable',data.e_chargeable||'—'],['Booking Source',data.e_bsource||'—'],['AF Charges',data.e_airfreight_cost?'$'+data.e_airfreight_cost:'—']]);section('Inland Freight & Pick-up');row2([['P/U From',data.e_pu_mode==='same'?'Same as Shipper':(data.e_pu_from_address||'—')],['P/U Date',data.e_pu_date||'—'],['Transfer Date',data.e_transfer_date||'—'],['Trucker',data.e_trucker||'—'],['Carrier',data.e_carrier||'—'],['CFS Station',data.e_cfs||'—'],['Inland Cost',data.e_inland_cost?'$'+data.e_inland_cost:'—'],['CFS Cost',data.e_cfs_cost?'$'+data.e_cfs_cost:'—']]);}
+  else{section('Dates & Schedule');row2([['ETA',data.i_eta||'—'],['Last Free Day',data.i_last_free_day||'—'],['Transfer',data.i_transfer_date||'—'],['P/U Date',data.i_pu_date||'—'],['CASS Wt',data.i_cass_weight||'—'],['Chargeable',data.i_chargeable||'—']]);}
+  if((data.vols||[]).length>0){section('Dimensions & Weight');doc.autoTable({startY:y,head:[['Pcs','L(cm)','W(cm)','H(cm)','L(in)','W(in)','H(in)','Kg','Lbs']],body:(data.vols||[]).map(v=>[v.pcs||'',v.lcm||'',v.wcm||'',v.hcm||'',v.lin||'',v.win||'',v.hin||'',v.kg||'',v.lbs||'']),margin:{left:14},tableWidth:182,styles:{fontSize:8},headStyles:{fillColor:[200,200,200],textColor:30}});y=doc.lastAutoTable.finalY+4;}
+  section('Process Checklist');
+  const items=mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+  doc.autoTable({startY:y,head:[['Step','Completed','Date']],body:items.map(item=>{const chk=data.checklist?.[item.key];return[item.label,chk?.checked?'✓ Yes':'—',chk?.date||'—'];}),margin:{left:14},tableWidth:182,styles:{fontSize:8},headStyles:{fillColor:[200,200,200],textColor:30}});
+  y=doc.lastAutoTable.finalY+4;
+  section('Revenue & Profit');
+  row2([['Revenue ($)',data[p+'_revenue']||'—'],['Profit ($)',data[p+'_profit']||'—']]);
+  if(data[p+'_comments']){section('Comments');doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(data[p+'_comments'],178),14,y);}
+  doc.save('AFM_'+file.replace(/[^a-zA-Z0-9]/g,'-')+'_'+mode.toUpperCase()+'.pdf');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  resetForm('exp');
+  resetForm('imp');
+  setSyncStatus('saving','⏳ Connecting…');
+  await sbLoadProcesses();
+  await sbLoadCompanies();
+  checkMigrationNeeded();
+  showScreenDirect('list');
+  document.getElementById('tab-list').classList.add('active');
+  renderTable();
+  initDatePickers();
+});
+</script>
+</body>
+</html>
