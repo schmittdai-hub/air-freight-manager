@@ -1802,7 +1802,7 @@ function exportPDF(mode){
   y=doc.lastAutoTable.finalY+4;
 
   if(mode==='imp'){
-    section('Station Fees'1);
+    section('Station Fees', 1);
     const feeIds=['i_fee_cfs','i_fee_airline','i_fee_storage','i_fee_waiting','i_fee_customs','i_fee_other'];
     const feeLabels=['CFS','Airline','Storage','Waiting','Customs','Other'];
     const feeTotal=feeIds.reduce((s,id)=>s+(parseFloat(data[id])||0),0);
