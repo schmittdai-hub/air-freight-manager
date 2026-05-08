@@ -1520,16 +1520,102 @@ function clearFilters(){['f-search','f-mode','f-status','f-date-from','f-date-to
 // ═══════════════════════════════════════════
 // EXCEL / BACKUP
 // ═══════════════════════════════════════════
-function exportExcel(){
-  const processes=getAllProcesses();
-  if(!processes.length){alert('No processes to export.');return;}
-  const rows=processes.map(p=>{const d=p.data;return{'Type':p.mode.toUpperCase(),'Status':p.status,'File Number':d.e_file_number||d.i_file_number||'','MAWB':d.e_mawb||d.i_mawb||'','HAWB':d.e_hawb||d.i_hawb||'','Airline':d.e_airline||d.i_airline||'','Origin':d.e_origin||d.i_origin||'','Destination':d.e_dest||d.i_dest||'','Shipper':d.e_shipper||d.i_shipper||'','Consignee':d.e_consignee||d.i_consignee||'','Agent':d.e_agent||d.i_agent||'','Trucker':d.e_trucker||d.i_trucker||'','Departure/ETA':d.e_departure||d.i_eta||'','Last Free Day':d.i_last_free_day||'','Booking Source':d.e_bsource||'','Inland Cost($)':d.e_inland_cost||'','CFS Cost($)':d.e_cfs_cost||'','AF Charges($)':d.e_airfreight_cost||'','Revenue($)':d.e_revenue||d.i_revenue||'','Profit($)':d.e_profit||d.i_profit||'','Progress(%)':calcProgressPct(d,p.mode)+'%','Days Open':daysOpen(p.createdAt)??'','Saved At':p.savedAt?new Date(p.savedAt).toLocaleString():''};});
-  const ws=XLSX.utils.json_to_sheet(rows);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Processes');
-  XLSX.writeFile(wb,'AirFreight_Processes_'+new Date().toISOString().slice(0,10)+'.xlsx');
-}
+function exportExcel() {
+  if (!processes || processes.length === 0) {
+    alert('No processes to export.');
+    return;
+  }
 
+  // Helper: extrai o nome do mês a partir de uma data MM/DD/YYYY
+  const monthNames = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+  function getBillingMonth(dateStr) {
+    if (!dateStr) return '';
+    // Aceita MM/DD/YYYY ou MM-DD-YYYY
+    const m = String(dateStr).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (!m) return '';
+    const monthIdx = parseInt(m[1], 10) - 1;
+    if (monthIdx < 0 || monthIdx > 11) return '';
+    const year = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${monthNames[monthIdx]} ${year}`;
+  }
+
+  // Helper: soma numérica segura
+  function sumField(arr, field) {
+    if (!Array.isArray(arr)) return 0;
+    return arr.reduce((acc, item) => {
+      const v = parseFloat(item?.[field]);
+      return acc + (isNaN(v) ? 0 : v);
+    }, 0);
+  }
+
+  // Monta as linhas no formato exato solicitado
+  const rows = processes.map(p => {
+    const d = p.data || {};
+    const isExp = p.mode === 'exp';
+    const chk = d.checklist || {};
+
+    const nomination = chk.nomination?.date || '';
+    const billing    = getBillingMonth(chk.dn_sent?.date);
+    const agent      = isExp ? (d.e_agent || '') : (d.i_agent || '');
+    const ops        = 'Daiane';
+    const shipType   = isExp ? 'Air Export' : 'Air Import';
+    const airline    = isExp ? (d.e_airline || '') : (d.i_airline || '');
+    const hawb       = isExp ? (d.e_hawb || '') : (d.i_hawb || '');
+    const fileNo     = isExp ? (d.e_file_number || '') : (d.i_file_number || '');
+    const mawb       = isExp ? (d.e_mawb || '') : (d.i_mawb || '');
+    const client     = isExp ? (d.e_shipper || '') : (d.i_consignee || '');
+    const pieces     = sumField(d.vols, 'pcs');
+    const weight     = sumField(d.vols, 'kg');
+    const reference  = isExp ? (d.e_reference || '') : (d.i_reference || '');
+
+    return {
+      'Nomination'    : nomination,
+      'Billing'       : billing,
+      'Agent'         : agent,
+      'Ops.'          : ops,
+      'Shipment Type' : shipType,
+      'Airline'       : airline,
+      'HAWB'          : hawb,
+      'SCL File No'   : fileNo,
+      'MAWB number'   : mawb,
+      'Client'        : client,
+      'Pieces'        : pieces || '',
+      'Weight'        : weight ? Number(weight.toFixed(2)) : '',
+      'Reference'     : reference
+    };
+  });
+
+  // Garante a ordem das colunas
+  const headers = ['Nomination','Billing','Agent','Ops.','Shipment Type',
+                   'Airline','HAWB','SCL File No','MAWB number','Client',
+                   'Pieces','Weight','Reference'];
+
+  const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+  // Larguras sugeridas (em caracteres) para melhor leitura
+  ws['!cols'] = [
+    { wch: 12 }, // Nomination
+    { wch: 14 }, // Billing
+    { wch: 10 }, // Agent
+    { wch: 10 }, // Ops.
+    { wch: 14 }, // Shipment Type
+    { wch: 10 }, // Airline
+    { wch: 14 }, // HAWB
+    { wch: 16 }, // SCL File No
+    { wch: 18 }, // MAWB number
+    { wch: 28 }, // Client
+    { wch: 8  }, // Pieces
+    { wch: 10 }, // Weight
+    { wch: 40 }  // Reference
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Report');
+
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `AFM_Report_${today}.xlsx`);
+}
 function exportBackup(){
   const blob=new Blob([JSON.stringify({processes:getAllProcesses(),companies:getCompanies(),exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AFM_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
