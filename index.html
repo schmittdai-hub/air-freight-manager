@@ -1710,6 +1710,8 @@ function clearFilters(){['f-search','f-mode','f-status','f-date-from','f-date-to
 // EXCEL / BACKUP
 // ═══════════════════════════════════════════
 function exportExcel() {
+  const processes = getAllProcesses();   // ⬅️ LINHA ADICIONADA
+
   if (!processes || processes.length === 0) {
     alert('No processes to export.');
     return;
@@ -1789,7 +1791,7 @@ function exportExcel() {
 
   const today = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, `AFM_Report_${today}.xlsx`);
-}
+}   
 // ═══════════════════════════════════════════
 // PDF — filename: "MAWB DAI-COVER"
 // ═══════════════════════════════════════════
