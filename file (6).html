@@ -1529,27 +1529,16 @@ function exportExcel() {
   const monthNames = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December'];
 
-  // Converte string MM/DD/YYYY em objeto Date (para ordenação)
-  function parseDate(dateStr) {
-    if (!dateStr) return null;
-    const m = String(dateStr).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-    if (!m) return null;
-    const month = parseInt(m[1], 10) - 1;
-    const day   = parseInt(m[2], 10);
-    let year    = parseInt(m[3], 10);
-    if (year < 100) year += 2000;
-    const d = new Date(year, month, day);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  // Extrai "Month YYYY" de uma data MM/DD/YYYY
   function getBillingMonth(dateStr) {
-    const d = parseDate(dateStr);
-    if (!d) return '';
-    return `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    if (!dateStr) return '';
+    const m = String(dateStr).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (!m) return '';
+    const monthIdx = parseInt(m[1], 10) - 1;
+    if (monthIdx < 0 || monthIdx > 11) return '';
+    const year = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${monthNames[monthIdx]} ${year}`;
   }
 
-  // Soma numérica segura
   function sumField(arr, field) {
     if (!Array.isArray(arr)) return 0;
     return arr.reduce((acc, item) => {
@@ -1558,51 +1547,39 @@ function exportExcel() {
     }, 0);
   }
 
-  // 🔽 ORDENA processos por data de Nomination (mais antiga primeiro)
-  const sortedProcesses = [...processes].sort((a, b) => {
-    const dateA = parseDate(a?.data?.checklist?.nomination?.date);
-    const dateB = parseDate(b?.data?.checklist?.nomination?.date);
-    // processos sem data vão pro final
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return 1;
-    if (!dateB) return -1;
-    return dateA - dateB; // ascendente: mais antiga primeiro
-  });
-
-  // Monta as linhas
-  const rows = sortedProcesses.map(p => {
+  const rows = processes.map(p => {
     const d = p.data || {};
     const isExp = p.mode === 'exp';
     const chk = d.checklist || {};
 
-    const nomination   = chk.nomination?.date || '';
-    const billing      = getBillingMonth(chk.dn_sent?.date);
-    const agent        = isExp ? (d.e_agent || '')        : (d.i_agent || '');
-    const ops          = 'Daiane';
-    const shipmentType = isExp ? 'Air Export'             : 'Air Import';
-    const airline      = isExp ? (d.e_airline || '')      : (d.i_airline || '');
-    const hawb         = isExp ? (d.e_hawb || '')         : (d.i_hawb || '');
-    const fileNo       = isExp ? (d.e_file_number || '')  : (d.i_file_number || '');
-    const mawb         = isExp ? (d.e_mawb || '')         : (d.i_mawb || '');
-    const client       = isExp ? (d.e_shipper || '')      : (d.i_consignee || '');
-    const pieces       = sumField(d.vols, 'pcs');
-    const weight       = sumField(d.vols, 'kg');
-    const reference    = isExp ? (d.e_reference || '')    : (d.i_reference || '');
+    const nomination = chk.nomination?.date || '';
+    const billing    = getBillingMonth(chk.dn_sent?.date);
+    const agent      = isExp ? (d.e_agent || '') : (d.i_agent || '');
+    const ops        = 'Daiane';
+    const shipType   = isExp ? 'Air Export' : 'Air Import';
+    const airline    = isExp ? (d.e_airline || '') : (d.i_airline || '');
+    const hawb       = isExp ? (d.e_hawb || '') : (d.i_hawb || '');
+    const fileNo     = isExp ? (d.e_file_number || '') : (d.i_file_number || '');
+    const mawb       = isExp ? (d.e_mawb || '') : (d.i_mawb || '');
+    const client     = isExp ? (d.e_shipper || '') : (d.i_consignee || '');
+    const pieces     = sumField(d.vols, 'pcs');
+    const weight     = sumField(d.vols, 'kg');
+    const reference  = isExp ? (d.e_reference || '') : (d.i_reference || '');
 
     return {
-      'Nomination'   : nomination,
-      'Billing'      : billing,
-      'Agent'        : agent,
-      'Ops.'         : ops,
-      'Shipment Type': shipmentType,
-      'Airline'      : airline,
-      'HAWB'         : hawb,
-      'SCL File No'  : fileNo,
-      'MAWB number'  : mawb,
-      'Client'       : client,
-      'Pieces'       : pieces || '',
-      'Weight'       : weight ? Number(weight.toFixed(2)) : '',
-      'Reference'    : reference
+      'Nomination'    : nomination,
+      'Billing'       : billing,
+      'Agent'         : agent,
+      'Ops.'          : ops,
+      'Shipment Type' : shipType,
+      'Airline'       : airline,
+      'HAWB'          : hawb,
+      'SCL File No'   : fileNo,
+      'MAWB number'   : mawb,
+      'Client'        : client,
+      'Pieces'        : pieces || '',
+      'Weight'        : weight ? Number(weight.toFixed(2)) : '',
+      'Reference'     : reference
     };
   });
 
@@ -1611,45 +1588,19 @@ function exportExcel() {
                    'Pieces','Weight','Reference'];
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
   ws['!cols'] = [
     { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 },
     { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 28 },
-    { wch: 8  }, { wch: 10 }, { wch: 40 }
+    { wch: 8 },  { wch: 10 }, { wch: 40 }
   ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Report');
 
-  const todayStr = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `AFM_Report_${todayStr}.xlsx`);
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `AFM_Report_${today}.xlsx`);
 }
-function exportBackup(){
-  const blob=new Blob([JSON.stringify({processes:getAllProcesses(),companies:getCompanies(),exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AFM_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
-}
-function importBackupClick(){document.getElementById('import-file').click();}
-async function importBackup(event){
-  const file=event.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const backup=JSON.parse(e.target.result);
-      if(!backup.processes){alert('Invalid backup file.');return;}
-      if(!confirm(`Import ${backup.processes.length} processes and ${(backup.companies||[]).length} companies?`))return;
-      showLoading('Importing backup…');
-      for(const p of backup.processes){
-        const payload={key:p.key,mode:p.mode,status:p.status,data:p.data,saved_at:p.savedAt?new Date(p.savedAt).toISOString():new Date().toISOString(),created_at:p.createdAt?new Date(p.createdAt).toISOString():new Date().toISOString()};
-        await db.from('processes').upsert(payload,{onConflict:'key'});
-      }
-      if(backup.companies){for(const c of backup.companies){await db.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes},{onConflict:'id'});}}
-      hideLoading();
-      alert('Backup imported to cloud successfully!');
-      await sbLoadProcesses();renderTable();
-    }catch(err){hideLoading();alert('Error: '+err.message);}
-  };
-  reader.readAsText(file);event.target.value='';
-}
-
 // ═══════════════════════════════════════════
 // PDF
 // ═══════════════════════════════════════════
