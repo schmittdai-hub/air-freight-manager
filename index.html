@@ -1709,40 +1709,87 @@ function clearFilters(){['f-search','f-mode','f-status','f-date-from','f-date-to
 // ═══════════════════════════════════════════
 // EXCEL / BACKUP
 // ═══════════════════════════════════════════
-function exportExcel(){
-  const processes=getAllProcesses();
-  if(!processes.length){alert('No processes to export.');return;}
-  const rows=processes.map(p=>{const d=p.data;return{'Type':p.mode.toUpperCase(),'Status':p.status,'File Number':d.e_file_number||d.i_file_number||'','MAWB':d.e_mawb||d.i_mawb||'','HAWB':d.e_hawb||d.i_hawb||'','Airline':d.e_airline||d.i_airline||'','Origin':d.e_origin||d.i_origin||'','Destination':d.e_dest||d.i_dest||'','Shipper':d.e_shipper||d.i_shipper||'','Consignee':d.e_consignee||d.i_consignee||'','Agent':d.e_agent||d.i_agent||'','ETA':d.i_eta_id||d.i_eta||'','Departure':d.e_departure||'','Last Free Day':d.i_last_free_day||'','Revenue($)':d.e_revenue||d.i_revenue||'','Profit($)':d.e_profit||d.i_profit||'','Progress(%)':calcProgressPct(d,p.mode)+'%','Days Open':daysOpen(p.createdAt)??''};});
-  const ws=XLSX.utils.json_to_sheet(rows);
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Processes');
-  XLSX.writeFile(wb,'AirFreight_'+new Date().toISOString().slice(0,10)+'.xlsx');
-}
-function exportBackup(){
-  const blob=new Blob([JSON.stringify({processes:getAllProcesses(),companies:getCompanies(),exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AFM_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
-}
-function importBackupClick(){document.getElementById('import-file').click();}
-async function importBackup(event){
-  const file=event.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const backup=JSON.parse(e.target.result);
-      if(!backup.processes){alert('Invalid file.');return;}
-      if(!confirm(`Import ${backup.processes.length} processes?`))return;
-      showLoading('Importing…');
-      for(const p of backup.processes){
-        const payload={key:p.key,mode:p.mode,status:p.status,data:p.data,saved_at:p.savedAt?new Date(p.savedAt).toISOString():new Date().toISOString(),created_at:p.createdAt?new Date(p.createdAt).toISOString():new Date().toISOString()};
-        await db.from('processes').upsert(payload,{onConflict:'key'});
-      }
-      if(backup.companies){for(const c of backup.companies){await db.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes},{onConflict:'id'});}}
-      hideLoading();alert('Imported!');
-      await sbLoadProcesses();renderTable();
-    }catch(err){hideLoading();alert('Error: '+err.message);}
-  };
-  reader.readAsText(file);event.target.value='';
-}
+function exportExcel() {
+  if (!processes || processes.length === 0) {
+    alert('No processes to export.');
+    return;
+  }
 
+  const monthNames = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+
+  function getBillingMonth(dateStr) {
+    if (!dateStr) return '';
+    const m = String(dateStr).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (!m) return '';
+    const monthIdx = parseInt(m[1], 10) - 1;
+    if (monthIdx < 0 || monthIdx > 11) return '';
+    const year = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${monthNames[monthIdx]} ${year}`;
+  }
+
+  function sumField(arr, field) {
+    if (!Array.isArray(arr)) return 0;
+    return arr.reduce((acc, item) => {
+      const v = parseFloat(item?.[field]);
+      return acc + (isNaN(v) ? 0 : v);
+    }, 0);
+  }
+
+  const rows = processes.map(p => {
+    const d = p.data || {};
+    const isExp = p.mode === 'exp';
+    const chk = d.checklist || {};
+
+    const nomination = chk.nomination?.date || '';
+    const billing    = getBillingMonth(chk.dn_sent?.date);
+    const agent      = isExp ? (d.e_agent || '') : (d.i_agent || '');
+    const ops        = 'Daiane';
+    const shipType   = isExp ? 'Air Export' : 'Air Import';
+    const airline    = isExp ? (d.e_airline || '') : (d.i_airline || '');
+    const hawb       = isExp ? (d.e_hawb || '') : (d.i_hawb || '');
+    const fileNo     = isExp ? (d.e_file_number || '') : (d.i_file_number || '');
+    const mawb       = isExp ? (d.e_mawb || '') : (d.i_mawb || '');
+    const client     = isExp ? (d.e_shipper || '') : (d.i_consignee || '');
+    const pieces     = sumField(d.vols, 'pcs');
+    const weight     = sumField(d.vols, 'kg');
+    const reference  = isExp ? (d.e_reference || '') : (d.i_reference || '');
+
+    return {
+      'Nomination'    : nomination,
+      'Billing'       : billing,
+      'Agent'         : agent,
+      'Ops.'          : ops,
+      'Shipment Type' : shipType,
+      'Airline'       : airline,
+      'HAWB'          : hawb,
+      'SCL File No'   : fileNo,
+      'MAWB number'   : mawb,
+      'Client'        : client,
+      'Pieces'        : pieces || '',
+      'Weight'        : weight ? Number(weight.toFixed(2)) : '',
+      'Reference'     : reference
+    };
+  });
+
+  const headers = ['Nomination','Billing','Agent','Ops.','Shipment Type',
+                   'Airline','HAWB','SCL File No','MAWB number','Client',
+                   'Pieces','Weight','Reference'];
+
+  const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 },
+    { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 28 },
+    { wch: 8 },  { wch: 10 }, { wch: 40 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Report');
+
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `AFM_Report_${today}.xlsx`);
+}
 // ═══════════════════════════════════════════
 // PDF — filename: "MAWB DAI-COVER"
 // ═══════════════════════════════════════════
