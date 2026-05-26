@@ -489,7 +489,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
           <label id="e_lbl_cao" onclick="eDGT('cao')"><input type="radio" name="e_dgsub" value="cao"><span>CAO</span></label>
         </div>
         <div class="field" style="max-width:300px;margin-left:12px">
-          <label style="color:var(--dg-text)">DG Description / UN Number</label>
+          <label style="color:var(--dg-text)">DG Deion / UN Number</label>
           <input type="text" id="e_dg_desc" placeholder="e.g. Lithium Batteries UN3481">
         </div>
       </div>
@@ -764,7 +764,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
           <label id="i_lbl_icao" onclick="iDGT('cao')"><input type="radio" name="i_dgsub" value="cao"><span>CAO</span></label>
         </div>
         <div class="field" style="max-width:300px;margin-left:12px">
-          <label style="color:var(--dg-text)">DG Description / UN Number</label>
+          <label style="color:var(--dg-text)">DG Deion / UN Number</label>
           <input type="text" id="i_dg_desc" placeholder="e.g. Lithium Batteries UN3481">
         </div>
       </div>
@@ -1032,28 +1032,69 @@ async function loadFromCloud(){
 }
 
 function rowToProcess(r){
+  // 🔧 Compat layer: se vier no formato antigo (JSONB "data" com prefixos i_/e_),
+  // achata tudo para o formato esperado pelo restante do app.
+  let src = r;
+  if(r.data && typeof r.data === 'object'){
+    const prefix = r.mode === 'imp' ? 'i_' : 'e_';
+    const flat = {};
+    Object.keys(r.data).forEach(k=>{
+      const nk = k.startsWith(prefix) ? k.slice(prefix.length) : k;
+      flat[nk] = r.data[k];
+    });
+    // mescla: raiz da row sobrescreve data (caso haja duplicidade)
+    src = { ...flat, ...r };
+  }
   return{
-    id:r.id, mode:r.mode, status:r.status||'NEW',
-    fileNumber:r.file_number, mawb:r.mawb, hawb:r.hawb, airline:r.airline,
-    origin:r.origin, dest:r.dest, agent:r.agent, reference:r.reference,
-    dg:r.dg, dgType:r.dg_type, dgDesc:r.dg_desc,
-    security:r.security, lv:r.lv, declaredValue:r.declared_value, htsCode:r.hts_code, aesItn:r.aes_itn,
-    shipper:r.shipper, shipperAddress:r.shipper_address,
-    consignee:r.consignee, consigneeAddress:r.consignee_address,
-    legs:r.legs||[], cutoff:r.cutoff, departure:r.departure, etd:r.etd, eta:r.eta,
-    cassWeight:r.cass_weight, chargeable:r.chargeable, bookingSource:r.booking_source,
-    airfreightCost:r.airfreight_cost, volumes:r.volumes||[],
-    puFromMode:r.pu_from_mode, puFromAddress:r.pu_from_address,
-    puDate:r.pu_date, transferDate:r.transfer_date, trucker:r.trucker,
-    carrier:r.carrier, cfs:r.cfs, inlandCost:r.inland_cost, cfsCost:r.cfs_cost,
-    customsBroker:r.customs_broker, incoterm:r.incoterm, ies:r.ies,
-    entryNumber:r.entry_number, entryDate:r.entry_date, releaseDate:r.release_date,
-    feeDuty:r.fee_duty, feeMpf:r.fee_mpf, feeHmf:r.fee_hmf,
-    feeBroker:r.fee_broker, feeIsf:r.fee_isf, feeOther:r.fee_other,
-    deliveryDate:r.delivery_date, deliveryAddress:r.delivery_address, pod:r.pod, deliveryCost:r.delivery_cost,
-    checklist:r.checklist||{}, comments:r.comments, agentUpdate:r.agent_update,
-    revenue:r.revenue, profit:r.profit,
-    createdAt:r.created_at, updatedAt:r.updated_at
+    id:src.id, mode:src.mode, status:src.status||'NEW',
+    fileNumber: src.file_number ?? src.fileNumber,
+    mawb: src.mawb, hawb: src.hawb, airline: src.airline,
+    origin: src.origin, dest: src.dest, agent: src.agent, reference: src.reference,
+    dg: src.dg, dgType: src.dg_type ?? src.dgType, dgDesc: src.dg_desc ?? src.dgDesc,
+    security: src.security, lv: src.lv,
+    declaredValue: src.declared_value ?? src.declaredValue,
+    htsCode: src.hts_code ?? src.htsCode,
+    aesItn: src.aes_itn ?? src.aesItn,
+    shipper: src.shipper,
+    shipperAddress: src.shipper_address ?? src.shipperAddress,
+    consignee: src.consignee,
+    consigneeAddress: src.consignee_address ?? src.consigneeAddress,
+    legs: src.legs || [],
+    cutoff: src.cutoff, departure: src.departure, etd: src.etd, eta: src.eta,
+    cassWeight: src.cass_weight ?? src.cassWeight,
+    chargeable: src.chargeable,
+    bookingSource: src.booking_source ?? src.bookingSource,
+    airfreightCost: src.airfreight_cost ?? src.airfreightCost,
+    volumes: src.volumes || [],
+    puFromMode: src.pu_from_mode ?? src.puFromMode,
+    puFromAddress: src.pu_from_address ?? src.puFromAddress,
+    puDate: src.pu_date ?? src.puDate,
+    transferDate: src.transfer_date ?? src.transferDate,
+    trucker: src.trucker,
+    carrier: src.carrier, cfs: src.cfs,
+    inlandCost: src.inland_cost ?? src.inlandCost,
+    cfsCost: src.cfs_cost ?? src.cfsCost,
+    customsBroker: src.customs_broker ?? src.customsBroker,
+    incoterm: src.incoterm, ies: src.ies,
+    entryNumber: src.entry_number ?? src.entryNumber,
+    entryDate: src.entry_date ?? src.entryDate,
+    releaseDate: src.release_date ?? src.releaseDate,
+    feeDuty: src.fee_duty ?? src.feeDuty,
+    feeMpf: src.fee_mpf ?? src.feeMpf,
+    feeHmf: src.fee_hmf ?? src.feeHmf,
+    feeBroker: src.fee_broker ?? src.feeBroker,
+    feeIsf: src.fee_isf ?? src.feeIsf,
+    feeOther: src.fee_other ?? src.feeOther,
+    deliveryDate: src.delivery_date ?? src.deliveryDate,
+    deliveryAddress: src.delivery_address ?? src.deliveryAddress,
+    pod: src.pod,
+    deliveryCost: src.delivery_cost ?? src.deliveryCost,
+    checklist: src.checklist || {},
+    comments: src.comments,
+    agentUpdate: src.agent_update ?? src.agentUpdate,
+    revenue: src.revenue, profit: src.profit,
+    createdAt: src.created_at ?? src.createdAt,
+    updatedAt: src.updated_at ?? src.updatedAt
   };
 }
 
