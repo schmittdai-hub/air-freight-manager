@@ -1937,8 +1937,7 @@ async function saveProcess(mode){
   const prefix = mode==='exp'?'e':'i';
   const fileNumber = $(prefix+'_file_number').value.trim();
   const mawb = $(prefix+'_mawb').value.trim();
-  if(!fileNumber){alert('File Number is required.');return;}
-  if(!mawb){alert('MAWB is required.');return;}
+  // Obrigatoriedade removida: File Number e MAWB podem ficar em branco
 
   const isNew = !currentEdit.id;
   const id = currentEdit.id || uid();
@@ -1953,7 +1952,7 @@ async function saveProcess(mode){
     origin: $(prefix+'_origin').value.trim().toUpperCase(),
     dest: $(prefix+'_dest').value.trim().toUpperCase(),
     agent: $(prefix+'_agent').value.trim(),
-    dg: document.querySelector('input[name='+prefix+'_dg]:checked').value,
+    dg: document.querySelector('input[name='+prefix+'_dg]:checked')?.value || 'non-dg',
     dgType: document.querySelector('input[name='+prefix+'_dgsub]:checked')?.value,
     dgDesc: $(prefix+'_dg_desc').value.trim(),
     shipper: $(prefix+'_shipper').value.trim(),
@@ -1975,8 +1974,8 @@ async function saveProcess(mode){
   };
   if(mode==='exp'){
     p.reference = $('e_reference').value.trim();
-    p.security = document.querySelector('input[name=e_sec]:checked').value;
-    p.lv = document.querySelector('input[name=e_lv]:checked').value;
+    p.security = document.querySelector('input[name=e_sec]:checked')?.value || 'known';
+    p.lv = document.querySelector('input[name=e_lv]:checked')?.value || 'yes';
     p.declaredValue = $('e_declared_value').value.trim();
     p.htsCode = $('e_hts_code').value.trim();
     p.aesItn = $('e_aes_itn').value.trim();
@@ -1995,7 +1994,7 @@ async function saveProcess(mode){
     p.customsBroker = $('i_customs_broker').value.trim();
     p.reference    = $('i_reference').value.trim();
     p.incoterm     = $('i_incoterm').value;
-    p.ies          = document.querySelector('input[name=i_ies]:checked').value;
+    p.ies          = document.querySelector('input[name=i_ies]:checked')?.value || 'yes';
     p.eta          = ($('i_eta_id')||$('i_eta')||{value:''}).value.trim();
     p.lastFreeDay  = $('i_last_free_day') ? $('i_last_free_day').value.trim() : '';
     p.puDate       = $('i_pu_date') ? $('i_pu_date').value.trim() : '';
