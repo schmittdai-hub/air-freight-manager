@@ -1079,6 +1079,13 @@ async function loadFromCloud(){
 
   processes = (procs || []).map(rowToProcess);
   window.processes = processes;
+  // DIAG — remove after fix
+  if(processes.length){
+    const s = processes[0];
+    console.log('[DIAG] first process checklist:', JSON.stringify(s.checklist));
+    console.log('[DIAG] raw first row checklist:', JSON.stringify((procs||[])[0]?.checklist));
+    console.log('[DIAG] raw first row keys:', Object.keys((procs||[])[0]||{}));
+  }
 
   const {data:comps, error:e2} = await supa
     .from('companies')
