@@ -1079,13 +1079,7 @@ async function loadFromCloud(){
 
   processes = (procs || []).map(rowToProcess);
   window.processes = processes;
-  // DIAG — remove after fix
-  if(processes.length){
-    const s = processes[0];
-    console.log('[DIAG] first process checklist:', JSON.stringify(s.checklist));
-    console.log('[DIAG] raw first row checklist:', JSON.stringify((procs||[])[0]?.checklist));
-    console.log('[DIAG] raw first row keys:', Object.keys((procs||[])[0]||{}));
-  }
+
 
   const {data:comps, error:e2} = await supa
     .from('companies')
@@ -1134,13 +1128,18 @@ function normalizeVolumes(vols){
 
 
 // Normaliza checklist para o formato {chk_N:{done,date}} que o app usa
-function normalizeChecklist(raw, mode){
-  if(!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+function normalizeChecklist(raw){
+  // Handle null/undefined
+  if(!raw) return {};
+  // Handle JSON string (Supabase sometimes returns JSONB as string)
+  if(typeof raw === 'string'){
+    try{ raw = JSON.parse(raw); } catch(e){ return {}; }
+  }
+  if(typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out = {};
   Object.keys(raw).forEach(k => {
     const v = raw[k];
     if(v && typeof v === 'object'){
-      // aceita {done, date} e {checked, date}
       out[k] = {done: !!(v.done || v.checked), date: v.date || ''};
     } else if(typeof v === 'boolean'){
       out[k] = {done: v, date: ''};
@@ -1213,7 +1212,13 @@ function rowToProcess(r){
     deliveryAddress: src.delivery_address ?? src.deliveryAddress,
     pod: src.pod,
     deliveryCost: src.delivery_cost ?? src.deliveryCost,
-    checklist: normalizeChecklist(src.checklist),
+    checklist: (()=>{
+      const raw = src.checklist;
+      if(!raw || (typeof raw==='object' && Object.keys(raw).length===0)){
+        console.warn('[CHK] empty for', src.fileNumber||src.file_number, '| raw=', JSON.stringify(raw));
+      }
+      return normalizeChecklist(raw);
+    })(),
     comments: src.comments,
     agentUpdate: src.agent_update ?? src.agentUpdate,
     revenue: src.revenue, profit: src.profit,
@@ -1475,8 +1480,8 @@ function eDGT(t){
   else{$('e_lbl_cao').classList.add('active-dg');$('e_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=e_dgsub][value=cao]').checked=true;}
 }
 function iDGT(t){
-  if(t==='pax'){$('i_lbl_ipax').classList.add('active-dg');$('i_lbl_icao').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=pax]').checked=true;}
-  else{$('i_lbl_icao').classList.add('active-dg');$('i_lbl_ipax').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=cao]').checked=true;}
+  if(t==='pax'){$('i_lbl_pax').classList.add('active-dg');$('i_lbl_cao').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=pax]').checked=true;}
+  else{$('i_lbl_cao').classList.add('active-dg');$('i_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=cao]').checked=true;}
 }
 function eLV(yes){
   if(yes){$('e_lbl_lv_yes').classList.add('active');$('e_lbl_lv_no').classList.remove('active');$('e_lv_fields').classList.add('visible');document.querySelector('input[name=e_lv][value=yes]').checked=true;}
@@ -1846,7 +1851,7 @@ function loadImport(p){
   $('i_customs_broker').value = p.customsBroker||'';$('i_reference').value = p.reference||'';
   $('i_incoterm').value = p.incoterm||'';
   $('imp-status-select').value = p.status||'NEW';
-  iDG(p.dg==='dg');if(p.dg==='dg')iDGT(p.dgType||'pax');$('i_dg_desc').value = p.dgDesc||'';
+  iDG(p.dg==='dg');if(p.dg==='dg' && p.dgType)iDGT(p.dgType);else if(p.dg==='dg')iDGT('pax');$('i_dg_desc').value = p.dgDesc||'';
   if(p.ies==='no')iT('i_lbl_ies_no','i_lbl_ies_yes');else iT('i_lbl_ies_yes','i_lbl_ies_no');
   // ETA fields
   if($('i_eta_id'))$('i_eta_id').value = p.eta||'';
