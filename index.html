@@ -156,7 +156,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .cols-5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
 .field{display:flex;flex-direction:column;gap:4px;position:relative;}
 .field label{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-hint);}
-.field label.required::after{content:' *';color:var(--accent);}
 .field input,.field select,.field textarea{width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;transition:border-color .15s;width:100%;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent-mid);background:#fff;}
 .field textarea{resize:vertical;min-height:56px;}
@@ -471,10 +470,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <div class="section-header"><span class="section-title">1 · Identification</span></div>
     <div class="section-body">
       <div class="fields-grid cols-4" style="margin-bottom:10px">
-        <div class="field"><label class="required">File Number</label>
+        <div class="field"><label class=>File Number</label>
           <input type="text" id="e_file_number" placeholder="e.g. EXP-2024-001" oninput="document.getElementById('exp-file-display').textContent=this.value||'—'">
         </div>
-        <div class="field"><label class="required">MAWB</label><input type="text" id="e_mawb" placeholder="e.g. 123-45678901"></div>
+        <div class="field"><label class=>MAWB</label><input type="text" id="e_mawb" placeholder="e.g. 123-45678901"></div>
         <div class="field"><label>HAWB</label><input type="text" id="e_hawb" placeholder="e.g. HBL-0001"></div>
         <div class="field ac-wrap"><label>Airline</label>
           <input type="text" id="e_airline" placeholder="e.g. AA, LATAM" autocomplete="off" oninput="acFilter('e_airline','airline')">
@@ -482,8 +481,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
         </div>
       </div>
       <div class="fields-grid cols-4" style="margin-bottom:10px">
-        <div class="field"><label class="required">Origin Airport</label><input type="text" id="e_origin" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
-        <div class="field"><label class="required">Destination Airport</label><input type="text" id="e_dest" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class=>Origin Airport</label><input type="text" id="e_origin" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class=>Destination Airport</label><input type="text" id="e_dest" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
         <div class="field ac-wrap"><label>Agent</label>
           <input type="text" id="e_agent" placeholder="" autocomplete="off" oninput="acFilter('e_agent','agent')">
           <div class="ac-list" id="ac_e_agent" style="display:none"></div>
@@ -538,7 +537,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div class="fields-grid cols-2">
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div class="field ac-wrap">
-            <label class="required">Shipper</label>
+            <label class=>Shipper</label>
             <input type="text" id="e_shipper" placeholder="Company name" autocomplete="off" oninput="acFilter('e_shipper','shipper')">
             <div class="ac-list" id="ac_e_shipper" style="display:none"></div>
           </div>
@@ -546,7 +545,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div class="field ac-wrap">
-            <label class="required">Consignee</label>
+            <label class=>Consignee</label>
             <input type="text" id="e_consignee" placeholder="Company name" autocomplete="off" oninput="acFilter('e_consignee','consignee')">
             <div class="ac-list" id="ac_e_consignee" style="display:none"></div>
           </div>
@@ -751,10 +750,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <div class="section-body">
       <!-- Row 1: File, MAWB, HAWB, Airline -->
       <div class="fields-grid cols-4" style="margin-bottom:10px">
-        <div class="field"><label class="required">IES File Number</label>
+        <div class="field"><label class=>IES File Number</label>
           <input type="text" id="i_file_number" placeholder="e.g. IMP-2024-001" oninput="document.getElementById('imp-file-display').textContent=this.value||'—'">
         </div>
-        <div class="field"><label class="required">MAWB</label><input type="text" id="i_mawb" placeholder="e.g. 123-45678901"></div>
+        <div class="field"><label class=>MAWB</label><input type="text" id="i_mawb" placeholder="e.g. 123-45678901"></div>
         <div class="field"><label>HAWB</label><input type="text" id="i_hawb" placeholder="e.g. HBL-0001"></div>
         <div class="field ac-wrap"><label>Airline</label>
           <input type="text" id="i_airline" placeholder="e.g. AA, LATAM" autocomplete="off" oninput="acFilter('i_airline','airline')">
@@ -763,8 +762,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </div>
       <!-- Row 2: Origin, Dest, Agent, Broker, Reference -->
       <div class="fields-grid cols-5" style="margin-bottom:10px">
-        <div class="field"><label class="required">Origin Airport</label><input type="text" id="i_origin" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
-        <div class="field"><label class="required">Destination Airport</label><input type="text" id="i_dest" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class=>Origin Airport</label><input type="text" id="i_origin" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class=>Destination Airport</label><input type="text" id="i_dest" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
         <div class="field ac-wrap"><label>Agent</label>
           <input type="text" id="i_agent" placeholder="" autocomplete="off" oninput="acFilter('i_agent','agent')">
           <div class="ac-list" id="ac_i_agent" style="display:none"></div>
@@ -821,7 +820,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div class="fields-grid cols-2">
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div class="field ac-wrap">
-            <label class="required">Shipper</label>
+            <label class=>Shipper</label>
             <input type="text" id="i_shipper" placeholder="Company name" autocomplete="off" oninput="acFilter('i_shipper','shipper')">
             <div class="ac-list" id="ac_i_shipper" style="display:none"></div>
           </div>
@@ -829,7 +828,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div class="field ac-wrap">
-            <label class="required">Consignee</label>
+            <label class=>Consignee</label>
             <input type="text" id="i_consignee" placeholder="Company name" autocomplete="off" oninput="acFilter('i_consignee','consignee')">
             <div class="ac-list" id="ac_i_consignee" style="display:none"></div>
           </div>
