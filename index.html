@@ -1073,13 +1073,12 @@ async function loadFromCloud(){
   const {data:procs, error:e1} = await supa
     .from('processes')
     .select('*')
-    .order('updated_at',{ascending:false});
+    .order('saved_at',{ascending:false});
 
   if(e1) throw e1;
 
   processes = (procs || []).map(rowToProcess);
   window.processes = processes;
-
 
   const {data:comps, error:e2} = await supa
     .from('companies')
@@ -1128,128 +1127,192 @@ function normalizeVolumes(vols){
 
 
 // Normaliza checklist para o formato {chk_N:{done,date}} que o app usa
-function normalizeChecklist(raw){
-  // Handle null/undefined
+// Named-key to chk_N mapping for legacy data
+const EXP_CHK_KEYS=['nomination','cargo_ready','airline_book','pickup_sched','pickup_conf','drop_inst','drop_reminder','airline_cargo','prealert','departure_date','dn_sent','files_list','files_log','file_closed'];
+const IMP_CHK_KEYS=['nomination','cargo_arrival','customs_clear','payment_fees','recovery_sched','cargo_on_hand','consignee_deliv','est_delivery','cargo_del_conf','pod_sent','dn_sent','files_log','file_closed'];
+
+function normalizeChecklist(raw, mode){
   if(!raw) return {};
-  // Handle JSON string (Supabase sometimes returns JSONB as string)
-  if(typeof raw === 'string'){
-    try{ raw = JSON.parse(raw); } catch(e){ return {}; }
-  }
+  if(typeof raw === 'string'){ try{ raw = JSON.parse(raw); }catch(e){ return {}; } }
   if(typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const keys = Object.keys(raw);
+  if(!keys.length) return {};
+  // Already chk_N format
+  if(keys.some(k => k.startsWith('chk_'))){
+    const out = {};
+    keys.forEach(k => {
+      const v = raw[k];
+      if(v && typeof v === 'object') out[k] = {done: !!(v.done||v.checked), date: v.date||''};
+      else out[k] = {done: !!v, date: ''};
+    });
+    return out;
+  }
+  // Named-key format (legacy) — map to chk_N
+  const keyMap = (mode === 'imp') ? IMP_CHK_KEYS : EXP_CHK_KEYS;
   const out = {};
-  Object.keys(raw).forEach(k => {
-    const v = raw[k];
-    if(v && typeof v === 'object'){
-      out[k] = {done: !!(v.done || v.checked), date: v.date || ''};
-    } else if(typeof v === 'boolean'){
-      out[k] = {done: v, date: ''};
-    } else {
-      out[k] = {done: false, date: ''};
-    }
+  keyMap.forEach((name, i) => {
+    const v = raw[name];
+    if(v && typeof v === 'object') out['chk_'+i] = {done: !!(v.done||v.checked), date: v.date||''};
+    else out['chk_'+i] = {done: !!v, date: ''};
   });
   return out;
 }
-
 function rowToProcess(r){
-  // 🔧 Compat layer: se vier no formato antigo (JSONB "data" com prefixos i_/e_),
-  // achata tudo para o formato esperado pelo restante do app.
-  let src = r;
+  // DB table: id/key, mode, status, data(JSONB), created_at, saved_at
+  const mode = r.mode || '';
+  const pfx  = mode === 'imp' ? 'i_' : 'e_';
+
+  // Flatten r.data (strip e_/i_ prefix) into src
+  const src = {};
   if(r.data && typeof r.data === 'object'){
-    const prefix = r.mode === 'imp' ? 'i_' : 'e_';
-    const flat = {};
-    Object.keys(r.data).forEach(k=>{
-      const nk = k.startsWith(prefix) ? k.slice(prefix.length) : k;
-      flat[nk] = r.data[k];
+    Object.keys(r.data).forEach(k => {
+      const nk = k.startsWith(pfx) ? k.slice(pfx.length) : k;
+      src[nk] = r.data[k];
     });
-    // mescla: raiz sobrescreve data, mas só se o valor não for null/undefined
-    const merged = { ...flat };
-    Object.keys(r).forEach(k => {
-      if(r[k] !== null && r[k] !== undefined) merged[k] = r[k];
-    });
-    src = merged;
   }
-  return{
-    id:src.id, mode:src.mode, status:src.status||'NEW',
-    fileNumber: src.file_number ?? src.fileNumber,
-    mawb: src.mawb, hawb: src.hawb, airline: src.airline,
-    origin: src.origin, dest: src.dest, agent: src.agent, reference: src.reference,
-    dg: src.dg, dgType: src.dg_type ?? src.dgType, dgDesc: src.dg_desc ?? src.dgDesc,
-    security: src.security ?? src.sec, lv: src.lv,
-    declaredValue: src.declared_value ?? src.declaredValue,
-    htsCode: src.hts_code ?? src.htsCode,
-    aesItn: src.aes_itn ?? src.aesItn,
-    shipper: src.shipper,
-    shipperAddress: src.shipper_address ?? src.shipperAddress,
-    consignee: src.consignee,
-    consigneeAddress: src.consignee_address ?? src.consigneeAddress,
-    legs: src.legs || [],
-    cutoff: src.cutoff, departure: src.departure, etd: src.etd, eta: src.eta,
-    cassWeight: src.cass_weight ?? src.cassWeight,
-    chargeable: src.chargeable,
-    bookingSource: src.booking_source ?? src.bookingSource ?? src.bsource,
-    airfreightCost: src.airfreight_cost ?? src.airfreightCost ?? src.airfreight_cost_val,
-    volumes: normalizeVolumes(src.volumes || src.vols),
-    puFromMode: src.pu_from_mode ?? src.puFromMode ?? src.pu_mode,
-    puFromAddress: src.pu_from_address ?? src.puFromAddress,
-    puDate: src.pu_date ?? src.puDate,
-    transferDate: src.transfer_date ?? src.transferDate,
-    trucker: src.trucker,
-    carrier: src.carrier, cfs: src.cfs,
-    inlandCost: src.inland_cost ?? src.inlandCost,
-    cfsCost: src.cfs_cost ?? src.cfsCost,
-    customsBroker: src.customs_broker ?? src.customsBroker,
-    incoterm: src.incoterm, ies: src.ies,
-    entryNumber: src.entry_number ?? src.entryNumber,
-    entryDate: src.entry_date ?? src.entryDate,
-    releaseDate: src.release_date ?? src.releaseDate,
-    feeDuty: src.fee_duty ?? src.feeDuty,
-    feeMpf: src.fee_mpf ?? src.feeMpf,
-    feeHmf: src.fee_hmf ?? src.feeHmf,
-    feeBroker: src.fee_broker ?? src.feeBroker,
-    feeIsf: src.fee_isf ?? src.feeIsf,
-    feeOther: src.fee_other ?? src.feeOther,
-    deliveryDate: src.delivery_date ?? src.deliveryDate,
-    deliveryAddress: src.delivery_address ?? src.deliveryAddress,
-    pod: src.pod,
-    deliveryCost: src.delivery_cost ?? src.deliveryCost,
-    checklist: (()=>{
-      const raw = src.checklist;
-      if(!raw || (typeof raw==='object' && Object.keys(raw).length===0)){
-        console.warn('[CHK] empty for', src.fileNumber||src.file_number, '| raw=', JSON.stringify(raw));
-      }
-      return normalizeChecklist(raw);
-    })(),
-    comments: src.comments,
-    agentUpdate: src.agent_update ?? src.agentUpdate,
-    revenue: src.revenue, profit: src.profit,
-    createdAt: src.created_at ?? src.createdAt,
-    updatedAt: src.updated_at ?? src.updatedAt
+  // Also pick top-level camelCase fields (backup/migration format), top-level wins
+  ['id','mode','status','fileNumber','mawb','hawb','airline','origin','dest','agent',
+   'reference','dg','dgDesc','security','lv','shipper','shipperAddress','consignee',
+   'consigneeAddress','legs','cutoff','departure','eta','cassWeight','chargeable',
+   'bookingSource','airfreightCost','volumes','puFromMode','puFromAddress','puDate',
+   'transferDate','trucker','carrier','cfs','inlandCost','cfsCost','customsBroker',
+   'incoterm','ies','feeOther','feeCfs','feeAirline','feeStorage','feeWaiting',
+   'feeCustoms','checklist','comments','revenue','profit','createdAt','updatedAt',
+   'declaredValue','htsCode','aesItn'].forEach(k => {
+    if(r[k] !== null && r[k] !== undefined) src[k] = r[k];
+  });
+
+  return {
+    id:            r.id || r.key || src.id,
+    mode:          mode,
+    status:        r.status  || src.status || 'NEW',
+    fileNumber:    src.fileNumber  || src.file_number  || '',
+    mawb:          src.mawb        || '',
+    hawb:          src.hawb        || '',
+    airline:       src.airline     || '',
+    origin:        src.origin      || '',
+    dest:          src.dest        || '',
+    agent:         src.agent       || '',
+    reference:     src.reference   || '',
+    dg:            src.dg          || 'non-dg',
+    dgType:        src.dgType      || src.dg_type || 'pax',
+    dgDesc:        src.dgDesc      || src.dg_desc || '',
+    security:      src.security    || 'known',
+    lv:            src.lv          || 'yes',
+    declaredValue: src.declaredValue || src.declared_value || '',
+    htsCode:       src.htsCode     || src.hts_code || '',
+    aesItn:        src.aesItn      || src.aes_itn  || '',
+    shipper:       src.shipper     || '',
+    shipperAddress:src.shipperAddress || src.shipper_address || '',
+    consignee:     src.consignee   || '',
+    consigneeAddress: src.consigneeAddress || src.consignee_address || '',
+    legs:          src.legs        || [],
+    cutoff:        src.cutoff      || '',
+    departure:     src.departure   || '',
+    eta:           src.eta         || '',
+    cassWeight:    src.cassWeight  || src.cass_weight  || '',
+    chargeable:    src.chargeable  || '',
+    bookingSource: src.bookingSource || src.booking_source || 'Airline Direct',
+    airfreightCost:src.airfreightCost || src.airfreight_cost || '',
+    volumes:       normalizeVolumes(src.volumes || src.vols),
+    puFromMode:    src.puFromMode  || src.pu_from_mode || 'same',
+    puFromAddress: src.puFromAddress || src.pu_from_address || '',
+    puDate:        src.puDate      || src.pu_date || '',
+    transferDate:  src.transferDate|| src.transfer_date || '',
+    trucker:       src.trucker     || '',
+    carrier:       src.carrier     || 'FA',
+    cfs:           src.cfs         || '',
+    inlandCost:    src.inlandCost  || src.inland_cost || '',
+    cfsCost:       src.cfsCost     || src.cfs_cost    || '',
+    customsBroker: src.customsBroker || src.customs_broker || '',
+    incoterm:      src.incoterm    || '',
+    ies:           src.ies         || 'yes',
+    feeOther:      src.feeOther    || src.fee_other    || '',
+    feeCfs:        src.feeCfs      || '',
+    feeAirline:    src.feeAirline  || '',
+    feeStorage:    src.feeStorage  || '',
+    feeWaiting:    src.feeWaiting  || '',
+    feeCustoms:    src.feeCustoms  || '',
+    checklist:     normalizeChecklist(src.checklist, mode),
+    comments:      src.comments    || '',
+    revenue:       src.revenue     || '',
+    profit:        src.profit      || '',
+    createdAt:     r.created_at    || src.createdAt || '',
+    updatedAt:     r.saved_at      || r.updated_at  || src.updatedAt || '',
   };
 }
-
 function processToRow(p){
-  return{
-    id:p.id, mode:p.mode, status:p.status||'NEW',
-    file_number:p.fileNumber, mawb:p.mawb, hawb:p.hawb, airline:p.airline,
-    origin:p.origin, dest:p.dest, agent:p.agent, reference:p.reference,
-    dg:p.dg, dg_type:p.dgType, dg_desc:p.dgDesc,
-    security:p.security, lv:p.lv, declared_value:p.declaredValue, hts_code:p.htsCode, aes_itn:p.aesItn,
-    shipper:p.shipper, shipper_address:p.shipperAddress,
-    consignee:p.consignee, consignee_address:p.consigneeAddress,
-    legs:p.legs||[], cutoff:p.cutoff, departure:p.departure, etd:p.etd, eta:p.eta,
-    cass_weight:p.cassWeight, chargeable:p.chargeable, booking_source:p.bookingSource,
-    airfreight_cost:p.airfreightCost, volumes:p.volumes||[],
-    pu_from_mode:p.puFromMode, pu_from_address:p.puFromAddress,
-    pu_date:p.puDate, transfer_date:p.transferDate, trucker:p.trucker,
-    carrier:p.carrier, cfs:p.cfs, inland_cost:p.inlandCost, cfs_cost:p.cfsCost,
-    customs_broker:p.customsBroker, incoterm:p.incoterm, ies:p.ies,
-    entry_number:p.entryNumber, entry_date:p.entryDate, release_date:p.releaseDate,
-    fee_duty:p.feeDuty, fee_mpf:p.feeMpf, fee_hmf:p.feeHmf,
-    fee_broker:p.feeBroker, fee_isf:p.feeIsf, fee_other:p.feeOther,
-    delivery_date:p.deliveryDate, delivery_address:p.deliveryAddress, pod:p.pod, delivery_cost:p.deliveryCost,
-    checklist:p.checklist||{}, comments:p.comments, agent_update:p.agentUpdate,
-    revenue:p.revenue, profit:p.profit,
-    updated_at:new Date().toISOString()
+  // Save to actual DB structure: id/key, mode, status, data(JSONB), created_at, saved_at
+  const pfx = p.mode === 'imp' ? 'i_' : 'e_';
+  
+  // Build data object with prefixed keys (matching original DB format)
+  const data = {};
+  data[pfx+'file_number']   = p.fileNumber    || '';
+  data[pfx+'mawb']          = p.mawb          || '';
+  data[pfx+'hawb']          = p.hawb          || '';
+  data[pfx+'airline']       = p.airline       || '';
+  data[pfx+'origin']        = p.origin        || '';
+  data[pfx+'dest']          = p.dest          || '';
+  data[pfx+'agent']         = p.agent         || '';
+  data[pfx+'reference']     = p.reference     || '';
+  data[pfx+'dg']            = p.dg            || 'non-dg';
+  data[pfx+'dg_desc']       = p.dgDesc        || '';
+  data[pfx+'shipper']       = p.shipper       || '';
+  data[pfx+'shipper_address']= p.shipperAddress|| '';
+  data[pfx+'consignee']     = p.consignee     || '';
+  data[pfx+'consignee_address']= p.consigneeAddress||'';
+  data['legs']              = p.legs          || [];
+  data[pfx+'cass_weight']   = p.cassWeight    || '';
+  data[pfx+'chargeable']    = p.chargeable    || '';
+  data[pfx+'airfreight_cost']= p.airfreightCost||'';
+  data['vols']              = p.volumes       || [];
+  data['checklist']         = p.checklist     || {};
+  data[pfx+'comments']      = p.comments      || '';
+  data[pfx+'revenue']       = p.revenue       || '';
+  data[pfx+'profit']        = p.profit        || '';
+  
+  if(p.mode === 'exp'){
+    data['e_lv']            = p.lv            || 'yes';
+    data['e_security']      = p.security      || 'known';
+    data['e_declared_value']= p.declaredValue || '';
+    data['e_hts_code']      = p.htsCode       || '';
+    data['e_aes_itn']       = p.aesItn        || '';
+    data['e_cutoff']        = p.cutoff        || '';
+    data['e_departure']     = p.departure     || '';
+    data['e_booking_source']= p.bookingSource || 'Airline Direct';
+    data['e_pu_from_mode']  = p.puFromMode    || 'same';
+    data['e_pu_from_address']= p.puFromAddress||'';
+    data['e_pu_date']       = p.puDate        || '';
+    data['e_transfer_date'] = p.transferDate  || '';
+    data['e_trucker']       = p.trucker       || '';
+    data['e_carrier']       = p.carrier       || 'FA';
+    data['e_cfs']           = p.cfs           || '';
+    data['e_inland_cost']   = p.inlandCost    || '';
+    data['e_cfs_cost']      = p.cfsCost       || '';
+  } else {
+    data['i_incoterm']      = p.incoterm      || '';
+    data['i_ies']           = p.ies           || 'yes';
+    data['i_eta']           = p.eta           || '';
+    data['i_customs_broker']= p.customsBroker || '';
+    data['i_pu_date']       = p.puDate        || '';
+    data['i_transfer_date'] = p.transferDate  || '';
+    data['i_trucker']       = p.trucker       || '';
+    data['i_cfs']           = p.cfs           || '';
+    data['i_inland_cost']   = p.inlandCost    || '';
+    data['i_fee_cfs']       = p.feeCfs        || '';
+    data['i_fee_airline']   = p.feeAirline    || '';
+    data['i_fee_storage']   = p.feeStorage    || '';
+    data['i_fee_waiting']   = p.feeWaiting    || '';
+    data['i_fee_customs']   = p.feeCustoms    || '';
+    data['i_fee_other']     = p.feeOther      || '';
+  }
+
+  return {
+    id:         p.id,
+    mode:       p.mode,
+    status:     p.status || 'NEW',
+    data:       data,
+    saved_at:   new Date().toISOString()
   };
 }
 
@@ -1265,11 +1328,6 @@ async function saveProcessCloud(p){
   }
 
   const row = processToRow(p);
-
-  if(!row.created_at){
-    row.created_at = p.createdAt || new Date().toISOString();
-  }
-
   setSync('saving','⏳ Saving…');
 
   const {error} = await supa.from('processes').upsert(row);
@@ -1493,15 +1551,19 @@ function setPUFrom(mode){
 }
 function selectCarrier(prefix,val){
   document.querySelectorAll('#'+prefix+'_carrier_wrap .carrier-btn').forEach(b=>b.classList.remove('selected'));
-  document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn[data-val="'+val+'"]').classList.add('selected');
-  $(prefix+'_carrier_val').value = val;
+  const _cb = document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn[data-val="'+val+'"]')
+           || document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn');
+  if(_cb) _cb.classList.add('selected');
+  if($(prefix+'_carrier_val')) $(prefix+'_carrier_val').value = val||'FA';
 }
 function selectBSource(prefix,val){
   document.querySelectorAll('#'+prefix+'_bsource_wrap .bsource-btn').forEach(b=>b.classList.remove('selected'));
-  document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn[data-val="'+val+'"]').classList.add('selected');
-  $(prefix+'_bsource_val').value = val;
-  if(val==='Other'){$(prefix+'_bsource_other_wrap').classList.add('visible');}
-  else{$(prefix+'_bsource_other_wrap').classList.remove('visible');$(prefix+'_bsource_other').value='';}
+  const _sb = document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn[data-val="'+val+'"]')
+           || document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn');
+  if(_sb) _sb.classList.add('selected');
+  if($(prefix+'_bsource_val')) $(prefix+'_bsource_val').value = val||'Airline Direct';
+  const _ow = $(prefix+'_bsource_other_wrap');
+  if(_ow){ if(val==='Other') _ow.classList.add('visible'); else { _ow.classList.remove('visible'); if($(prefix+'_bsource_other')) $(prefix+'_bsource_other').value=''; } }
 }
 
 // ============================================
@@ -1661,12 +1723,13 @@ function recalcTotals(prefix){
 }
 
 function collectChecklist(prefix){
-  const items = prefix==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
-  const out   = {};
+  const items = prefix==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const out = {};
   items.forEach((_,i)=>{
-    const cb = document.getElementById(prefix+'_chk_'+i);
-    const dt = document.getElementById(prefix+'_dt_'+i);
-    out['chk_'+i] = {done: cb ? cb.checked : false, date: dt ? dt.value : ''};
+    const key = 'chk_'+i;
+    const cb = document.getElementById(prefix+'_chk_'+key);
+    const dt = document.getElementById(prefix+'_dt_'+key);
+    out[key] = {done: cb ? cb.checked : false, date: dt ? dt.value : ''};
   });
   return out;
 }
@@ -1678,60 +1741,45 @@ function collectChecklist(prefix){
 // CHECKLIST
 // ═══════════════════════════════════════════
 function buildChecklist(p, _unused, state){
-  const items    = p==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
   const chkState = state || {};
-  const container = document.getElementById(p+'_checklist');
-  if(!container) return;
-  container.innerHTML = '';
-  items.forEach((item, i)=>{
-    const s         = chkState['chk_'+i] || {};
-    const isChecked = !!(s.done || s.checked);
-    const dateVal   = s.date || '';
-    const div       = document.createElement('div');
-    div.className   = 'check-item' + (isChecked ? ' done' : '');
-    div.id          = p+'_ci_'+i;
-    div.innerHTML   = `<input type="checkbox" id="${p}_chk_${i}" onchange="onCheck('${p}',${i},this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${i}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
+  const container=document.getElementById(p+'_checklist');
+  container.innerHTML='';
+  items.forEach((item,i)=>{
+    const div=document.createElement('div');
+    const key='chk_'+i;
+    div.className='check-item';div.id=p+'_ci_'+key;
+    const s = chkState[key];
+    const isChecked = s && !!(s.done || s.checked);
+    const dateVal = s && s.date ? s.date : '';
+    if(isChecked) div.classList.add('done');
+    div.innerHTML=`<input type="checkbox" id="${p}_chk_${key}" onchange="onCheck('${p}','${key}',this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${key}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
     container.appendChild(div);
   });
-  initPickers();
+  initDatePickers();
   updateProgress(p);
 }
-function onCheck(p,i,el){
-  const ci = document.getElementById(p+'_ci_'+i);
-  if(ci){
-    if(el.checked){
-      ci.classList.add('done');
-      const dt = document.getElementById(p+'_dt_'+i);
-      if(dt && !dt.value){ const n=new Date(); dt.value=(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0')+'/'+n.getFullYear(); }
-    } else {
-      ci.classList.remove('done');
-    }
-  }
-  updateProgress(p); updateBadge(p);
+function onCheck(p,key,el){
+  const ci=document.getElementById(p+'_ci_'+key);
+  if(el.checked){ci.classList.add('done');const dt=document.getElementById(p+'_dt_'+key);if(dt&&!dt.value){const n=new Date();dt.value=(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0')+'/'+n.getFullYear();}}
+  else{ci.classList.remove('done');}
+  updateProgress(p);updateBadge(p);
 }
-
 function updateProgress(p){
-  const items = p==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
-  const done  = items.filter((_,i) => document.getElementById(p+'_chk_'+i)?.checked).length;
-  const total = items.length;
-  const pct   = Math.round((done/total)*100);
-  const fill  = document.getElementById(p+'_prog_fill');
-  const text  = document.getElementById(p+'_prog_text');
-  const pctEl = document.getElementById(p+'_prog_pct');
-  const badge = document.getElementById(p+'_chk_pct');
-  if(fill)  fill.style.width  = pct+'%';
-  if(text)  text.textContent  = done+' of '+total+' steps completed';
-  if(pctEl) pctEl.textContent = pct+'%';
-  if(badge) badge.textContent = done+' / '+total;
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
+  const total=items.length,pct=Math.round((done/total)*100);
+  document.getElementById(p+'_prog_fill').style.width=pct+'%';
+  document.getElementById(p+'_prog_text').textContent=done+' of '+total+' steps completed';
+  document.getElementById(p+'_prog_pct').textContent=pct+'%';
+  document.getElementById(p+'_chk_pct').textContent=done+' / '+total;
 }
-
 function updateBadge(p){
-  const items = p==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
-  const done  = items.filter((_,i) => document.getElementById(p+'_chk_'+i)?.checked).length;
-  const sel   = document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
-  if(sel && done>0 && sel.value==='NEW') sel.value='IN PROCESS';
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
+  const sel=document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
+  if(done>0&&sel.value==='NEW')sel.value='IN PROCESS';
 }
-
 
 
 // ============================================
@@ -1851,7 +1899,7 @@ function loadImport(p){
   $('i_customs_broker').value = p.customsBroker||'';$('i_reference').value = p.reference||'';
   $('i_incoterm').value = p.incoterm||'';
   $('imp-status-select').value = p.status||'NEW';
-  iDG(p.dg==='dg');if(p.dg==='dg' && p.dgType)iDGT(p.dgType);else if(p.dg==='dg')iDGT('pax');$('i_dg_desc').value = p.dgDesc||'';
+  iDG(p.dg==='dg');if(p.dg==='dg')iDGT(p.dgType||'pax');$('i_dg_desc').value = p.dgDesc||'';
   if(p.ies==='no')iT('i_lbl_ies_no','i_lbl_ies_yes');else iT('i_lbl_ies_yes','i_lbl_ies_no');
   // ETA fields
   if($('i_eta_id'))$('i_eta_id').value = p.eta||'';
@@ -2023,15 +2071,16 @@ function daysOpenBadge(p){
 // NEXT TASK
 // ============================================
 function nextTask(p){
-  const items = p.mode==='exp' ? EXP_CHECKLIST : IMP_CHECKLIST;
-  const chk   = p.checklist || {};
-  for(let i=0; i<items.length; i++){
+  const items = p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const chk = p.checklist||{};
+  for(let i=0;i<items.length;i++){
     const v = chk['chk_'+i];
-    if(!v || !(v.done || v.checked)) return {name:items[i].label, index:i, done:false};
+    if(!v || !(v.done||v.checked)){
+      return {name:items[i].label, index:i, done:false};
+    }
   }
   return {name:'All complete', index:items.length, done:true};
 }
-
 function nextTaskBadge(p){
   const t = nextTask(p);
   if(t.done) return '<span class="next-task-badge ntb-done">✓ Done</span>';
@@ -2537,7 +2586,7 @@ async function importBackup(ev){
     companies = data.companies||[];
     if(cloudReady){
       showLoading('Restoring backup to cloud…');
-      for(const p of processes){const row=processToRow(p);row.created_at=p.createdAt||new Date().toISOString();await supa.from('processes').upsert(row);}
+      for(const p of processes){const row=processToRow(p);await supa.from('processes').upsert(row);}
       for(const c of companies){await supa.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes});}
       hideLoading();
     }
