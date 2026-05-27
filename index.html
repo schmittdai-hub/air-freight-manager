@@ -1671,7 +1671,7 @@ function buildChecklist(p, _unused, state){
     div.innerHTML    = `<input type="checkbox" id="${p}_chk_${i}" onchange="onCheck('${p}',${i},this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${i}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
     container.appendChild(div);
   });
-  initDatePickers();
+  initPickers();
   updateProgress(p);
 }
 function onCheck(p,i,el){
