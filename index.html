@@ -2006,7 +2006,9 @@ function lbsToKg(el,prefix){
 }
 function collectVolumes(prefix){
   const out = [];
-  $(prefix+'_vols').querySelectorAll('.volume-row').forEach(r=>{
+  const vWrap = $(prefix+'_vols');
+  if(!vWrap) return out;
+  vWrap.querySelectorAll('.volume-row').forEach(r=>{
     out.push({
       pcs:r.querySelector('.vi-pcs').value,
       lcm:r.querySelector('.vi-lcm').value,
@@ -2047,11 +2049,11 @@ function recalcTotals(prefix){
   $(prefix+'_chargeable_badge').textContent = chargeable?'✈️ Est. Chargeable: '+chargeable.toFixed(1)+' kg':'✈️ Est. Chargeable: —';
 
   if(gross>0){
-    $(prefix+'_cass_weight').value = cass.toFixed(1);
-    $(prefix+'_chargeable').value = chargeable.toFixed(1);
+    if($(prefix+'_cass_weight')) $(prefix+'_cass_weight').value = cass.toFixed(1);
+    if($(prefix+'_chargeable')) $(prefix+'_chargeable').value = chargeable.toFixed(1);
   }else{
-    $(prefix+'_cass_weight').value = '';
-    $(prefix+'_chargeable').value = '';
+    if($(prefix+'_cass_weight')) $(prefix+'_cass_weight').value = '';
+    if($(prefix+'_chargeable')) $(prefix+'_chargeable').value = '';
   }
 }
 
@@ -2269,9 +2271,14 @@ function loadImport(p){
 }
 
 async function saveProcess(mode){
+  // Helper: safely read .value from a nullable element
+  function val(id){ const el=$(id); return el ? el.value.trim() : ''; }
+  function valNum(id){ const el=$(id); return el ? num(el.value) : 0; }
+  function radio(name){ const el=document.querySelector('input[name='+name+']:checked'); return el ? el.value : ''; }
+
   const prefix = mode==='exp'?'e':'i';
-  const fileNumber = $(prefix+'_file_number').value.trim();
-  const mawb = $(prefix+'_mawb').value.trim();
+  const fileNumber = val(prefix+'_file_number');
+  const mawb       = val(prefix+'_mawb');
 
   const isNew = !currentEdit.id;
   const id = currentEdit.id || uid();
@@ -2279,71 +2286,72 @@ async function saveProcess(mode){
 
   const p = {
     id, mode,
-    status: $((mode==='exp'?'exp':'imp')+'-status-select').value,
+    status: val((mode==='exp'?'exp':'imp')+'-status-select') || 'NEW',
     fileNumber, mawb,
-    hawb: $(prefix+'_hawb').value.trim(),
-    airline: $(prefix+'_airline').value.trim(),
-    origin: $(prefix+'_origin').value.trim().toUpperCase(),
-    dest: $(prefix+'_dest').value.trim().toUpperCase(),
-    agent: $(prefix+'_agent').value.trim(),
-    dg: document.querySelector('input[name='+prefix+'_dg]:checked').value,
-    dgType: document.querySelector('input[name='+prefix+'_dgsub]:checked')?.value,
-    dgDesc: $(prefix+'_dg_desc').value.trim(),
-    shipper: $(prefix+'_shipper').value.trim(),
-    shipperAddress: $(prefix+'_shipper_address').value.trim(),
-    consignee: $(prefix+'_consignee').value.trim(),
-    consigneeAddress: $(prefix+'_consignee_address').value.trim(),
-    legs: collectLegs(prefix),
-    cassWeight: $(prefix+'_cass_weight').value.trim(),
-    chargeable: $(prefix+'_chargeable').value.trim(),
-    airfreightCost: num($(prefix+'_airfreight_cost').value),
-    volumes: collectVolumes(prefix),
-    trucker: $(prefix+'_trucker').value.trim(),
-    checklist: collectChecklist(prefix),
-    comments: $(prefix+'_comments').value.trim(),
-    agentUpdate: $(prefix+'_agent_update') ? $(prefix+'_agent_update').value.trim() : '',
-    revenue: num($(prefix+'_revenue').value),
-    profit: num($(prefix+'_profit').value),
-    createdAt: existing?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    hawb:              val(prefix+'_hawb'),
+    airline:           val(prefix+'_airline'),
+    origin:            val(prefix+'_origin').toUpperCase(),
+    dest:              val(prefix+'_dest').toUpperCase(),
+    agent:             val(prefix+'_agent'),
+    dg:                radio(prefix+'_dg') || 'non-dg',
+    dgType:            radio(prefix+'_dgsub') || 'pax',
+    dgDesc:            val(prefix+'_dg_desc'),
+    shipper:           val(prefix+'_shipper'),
+    shipperAddress:    val(prefix+'_shipper_address'),
+    consignee:         val(prefix+'_consignee'),
+    consigneeAddress:  val(prefix+'_consignee_address'),
+    legs:              collectLegs(prefix),
+    cassWeight:        val(prefix+'_cass_weight'),
+    chargeable:        val(prefix+'_chargeable'),
+    airfreightCost:    valNum(prefix+'_airfreight_cost'),
+    volumes:           collectVolumes(prefix),
+    trucker:           val(prefix+'_trucker'),
+    checklist:         collectChecklist(prefix),
+    comments:          val(prefix+'_comments'),
+    agentUpdate:       val(prefix+'_agent_update'),
+    revenue:           valNum(prefix+'_revenue'),
+    profit:            valNum(prefix+'_profit'),
+    createdAt:         existing?.createdAt || new Date().toISOString(),
+    updatedAt:         new Date().toISOString()
   };
+
   if(mode==='exp'){
-    p.reference = $('e_reference').value.trim();
-    p.security = document.querySelector('input[name=e_sec]:checked').value;
-    p.lv = document.querySelector('input[name=e_lv]:checked').value;
-    p.declaredValue = $('e_declared_value').value.trim();
-    p.htsCode = $('e_hts_code').value.trim();
-    p.aesItn = $('e_aes_itn').value.trim();
-    p.cutoff = $('e_cutoff').value.trim();
-    p.departure = $('e_departure').value.trim();
-    p.bookingSource = $('e_bsource_val').value==='Other' ? ('Other: '+$('e_bsource_other').value.trim()) : $('e_bsource_val').value;
-    p.puFromMode = $('e_pu_same_btn').classList.contains('active')?'same':'other';
-    p.puFromAddress = $('e_pu_from_address').value.trim();
-    p.puDate = $('e_pu_date').value.trim();
-    p.transferDate = $('e_transfer_date').value.trim();
-    p.carrier = $('e_carrier_val').value;
-    p.cfs = $('e_cfs').value.trim();
-    p.inlandCost = num($('e_inland_cost').value);
-    p.cfsCost = num($('e_cfs_cost').value);
-  }else{
-    p.customsBroker = $('i_customs_broker').value.trim();
-    p.reference    = $('i_reference').value.trim();
-    p.incoterm     = $('i_incoterm').value;
-    p.ies          = document.querySelector('input[name=i_ies]:checked').value;
-    p.eta          = ($('i_eta_id')||$('i_eta')||{value:''}).value.trim();
-    p.lastFreeDay  = $('i_last_free_day') ? $('i_last_free_day').value.trim() : '';
-    p.puDate       = $('i_pu_date') ? $('i_pu_date').value.trim() : '';
-    p.puFrom       = $('i_pu_from') ? $('i_pu_from').value.trim() : '';
-    p.transferDate = $('i_transfer_date') ? $('i_transfer_date').value.trim() : '';
-    p.trucker      = $('i_trucker') ? $('i_trucker').value.trim() : '';
-    p.cfs          = $('i_cfs') ? $('i_cfs').value.trim() : '';
-    p.inlandCost   = $('i_inland_cost') ? num($('i_inland_cost').value) : 0;
-    p.feeCfs       = $('i_fee_cfs')     ? num($('i_fee_cfs').value)     : 0;
-    p.feeAirline   = $('i_fee_airline') ? num($('i_fee_airline').value) : 0;
-    p.feeStorage   = $('i_fee_storage') ? num($('i_fee_storage').value) : 0;
-    p.feeWaiting   = $('i_fee_waiting') ? num($('i_fee_waiting').value) : 0;
-    p.feeCustoms   = $('i_fee_customs') ? num($('i_fee_customs').value) : 0;
-    p.feeOther     = $('i_fee_other')   ? num($('i_fee_other').value)   : 0;
+    p.reference    = val('e_reference');
+    p.security     = radio('e_sec') || 'known';
+    p.lv           = radio('e_lv') || 'yes';
+    p.declaredValue= val('e_declared_value');
+    p.htsCode      = val('e_hts_code');
+    p.aesItn       = val('e_aes_itn');
+    p.cutoff       = val('e_cutoff');
+    p.departure    = val('e_departure');
+    const bsrc     = val('e_bsource_val');
+    p.bookingSource= bsrc==='Other' ? ('Other: '+val('e_bsource_other')) : (bsrc||'Airline Direct');
+    p.puFromMode   = $('e_pu_same_btn') && $('e_pu_same_btn').classList.contains('active') ? 'same' : 'other';
+    p.puFromAddress= val('e_pu_from_address');
+    p.puDate       = val('e_pu_date');
+    p.transferDate = val('e_transfer_date');
+    p.carrier      = val('e_carrier_val') || 'FA';
+    p.cfs          = val('e_cfs');
+    p.inlandCost   = valNum('e_inland_cost');
+    p.cfsCost      = valNum('e_cfs_cost');
+  } else {
+    p.customsBroker= val('i_customs_broker');
+    p.reference    = val('i_reference');
+    p.incoterm     = val('i_incoterm');
+    p.ies          = radio('i_ies') || 'yes';
+    p.eta          = val('i_eta_id') || val('i_eta');
+    p.lastFreeDay  = val('i_last_free_day');
+    p.puDate       = val('i_pu_date');
+    p.puFrom       = val('i_pu_from');
+    p.transferDate = val('i_transfer_date');
+    p.cfs          = val('i_cfs');
+    p.inlandCost   = valNum('i_inland_cost');
+    p.feeCfs       = valNum('i_fee_cfs');
+    p.feeAirline   = valNum('i_fee_airline');
+    p.feeStorage   = valNum('i_fee_storage');
+    p.feeWaiting   = valNum('i_fee_waiting');
+    p.feeCustoms   = valNum('i_fee_customs');
+    p.feeOther     = valNum('i_fee_other');
   }
 
   if(isNew) processes.unshift(p);
