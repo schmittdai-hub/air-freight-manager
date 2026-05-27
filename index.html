@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 :root{
@@ -363,7 +363,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   </div>
 </div>
 
-<div class="screen active" id="screen-list">
+<div class="screen active" id="screen-list" style="display:block">
   <div id="migrate-banner" class="migrate-banner" style="display:none">
     <span class="migrate-banner-text">⚠️ <strong>Local data found!</strong> You have processes saved in this browser that haven't been migrated to the cloud yet.</span>
     <button class="btn btn-warn" onclick="migrateLocalToSupabase()">☁️ Migrate to Cloud Now</button>
@@ -731,17 +731,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
           <input type="text" id="i_agent" placeholder="" autocomplete="off" oninput="acFilter('i_agent','agent')">
           <div class="ac-list" id="ac_i_agent" style="display:none"></div>
         </div>
-<div class="field ac-wrap">
-  <label>Customs Broker</label>
-  <input
-    type="text"
-    id="i_customs_broker"
-    placeholder=""
-    autocomplete="off"
-    oninput="acFilter('i_customs_broker','broker')"
-  >
-  <div class="ac-list" id="ac_i_customs_broker" style="display:none"></div>
-</div>
+        <div class="field ac-wrap">
+          <label>Customs Broker</label>
+          <input type="text" id="i_customs_broker" placeholder="" autocomplete="off" oninput="acFilter('i_customs_broker','broker')">
+          <div class="ac-list" id="ac_i_customs_broker" style="display:none"></div>
         </div>
       </div>
       <div class="fields-grid cols-3" style="margin-bottom:10px">
@@ -942,7 +935,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 // SUPABASE CONFIGURATION
 // ============================================
 const SUPABASE_URL = 'https://swssbmixursxuslgssql.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c3NibWl4dXJzeHVzbGdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjUxNDIsImV4cCI6MjA5MjkwMTE0Mn0.QPuGtqjWC5ZXkibf69OC2rBCDvkIZKDLlyQXlCpvVCw'; // ⚠ Supabase → Project Settings → API → "anon public" (starts with eyJ...)
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c3NibWl4dXJzeHVzbGdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjUxNDIsImV4cCI6MjA5MjkwMTE0Mn0.QPuGtqjWC5ZXkibf69OC2rBCDvkIZKDLlyQXlCpvVCw';
 let supa = null;
 let cloudReady = false;
 
@@ -1044,10 +1037,21 @@ async function loadFromCloud(){
 
   if(e1) throw e1;
 
-  processes = (procs || []).map(rowToProcess);
+  // LOG DIAGNÓSTICO
+  const _sample = (procs || []).find(r => r.checklist && Object.keys(r.checklist||{}).length > 0);
+  if(_sample){
+    console.log('[DIAG] checklist RAW (file:', _sample.file_number, '):', JSON.stringify(_sample.checklist));
+  } else {
+    console.log('[DIAG] nenhum processo com checklist no Supabase');
+  }
 
-  // Opcional, mas ajuda se alguma função estiver usando window.processes
+  processes = (procs || []).map(rowToProcess);
   window.processes = processes;
+
+  const _sampleNorm = processes.find(p => p.checklist && Object.keys(p.checklist).length > 0);
+  if(_sampleNorm){
+    console.log('[DIAG] checklist NORMALIZADO (file:', _sampleNorm.fileNumber, '):', JSON.stringify(_sampleNorm.checklist));
+  }
 
   const {data:comps, error:e2} = await supa
     .from('companies')
@@ -1073,6 +1077,49 @@ async function loadFromCloud(){
   }
 }
 
+
+// Normaliza o checklist para o formato {chk_0:{done:bool,date:str}, ...}
+// independente de como foi salvo (booleano, array, objeto com keys numéricas, etc.)
+function normalizeChecklist(raw){
+  if(!raw) return {};
+  // Já está no formato correto: {chk_0:{done:true,date:'...'}, ...}
+  if(typeof raw === 'object' && !Array.isArray(raw)){
+    const keys = Object.keys(raw);
+    if(keys.length === 0) return {};
+    // Verifica se as keys já são chk_N
+    if(keys.some(k => k.startsWith('chk_'))){
+      // Normaliza cada valor para garantir {done, date}
+      const out = {};
+      keys.forEach(k => {
+        const v = raw[k];
+        if(typeof v === 'boolean') out[k] = {done: v, date: ''};
+        else if(v && typeof v === 'object') out[k] = {done: !!(v.done || v.checked || v.completed), date: v.date || v.completedAt || ''};
+        else out[k] = {done: false, date: ''};
+      });
+      return out;
+    }
+    // Keys numéricas: {"0":{done:true}, "1":{done:false}}
+    if(keys.every(k => !isNaN(Number(k)))){
+      const out = {};
+      keys.forEach(k => {
+        const v = raw[k];
+        out['chk_'+k] = {done: v && typeof v === 'object' ? !!(v.done||v.checked||v.completed) : !!v, date: v?.date || ''};
+      });
+      return out;
+    }
+  }
+  // Array: [true, false, ...] ou [{done:true}, ...]
+  if(Array.isArray(raw)){
+    const out = {};
+    raw.forEach((v, i) => {
+      if(typeof v === 'boolean') out['chk_'+i] = {done: v, date: ''};
+      else if(v && typeof v === 'object') out['chk_'+i] = {done: !!(v.done||v.checked||v.completed), date: v.date||''};
+      else out['chk_'+i] = {done: false, date: ''};
+    });
+    return out;
+  }
+  return {};
+}
 
 function rowToProcess(r){
   // 🔧 Compat layer: se vier no formato antigo (JSONB "data" com prefixos i_/e_),
@@ -1132,7 +1179,7 @@ function rowToProcess(r){
     deliveryAddress: src.delivery_address ?? src.deliveryAddress,
     pod: src.pod,
     deliveryCost: src.delivery_cost ?? src.deliveryCost,
-    checklist: src.checklist || {},
+    checklist: normalizeChecklist(src.checklist),
     comments: src.comments,
     agentUpdate: src.agent_update ?? src.agentUpdate,
     revenue: src.revenue, profit: src.profit,
@@ -1582,7 +1629,7 @@ function buildChecklist(prefix,items,state){
   wrap.innerHTML = items.map((name,i)=>{
     const key = 'chk_'+i;
     const checked = state && state[key] ? state[key] : null;
-    const isDone = checked && checked.done;
+    const isDone = checked && (checked.done === true || checked.done === 'true');
     const date = checked && checked.date ? checked.date : '';
     return `
       <div class="check-item ${isDone?'done':''}" data-key="${key}">
@@ -1905,7 +1952,9 @@ function nextTask(p){
   const items = p.mode==='exp'?CHECKLIST_EXP:CHECKLIST_IMP;
   const chk = p.checklist||{};
   for(let i=0;i<items.length;i++){
-    if(!chk['chk_'+i] || !chk['chk_'+i].done){
+    const v = chk['chk_'+i];
+    const isDone = v && (v.done === true || v.done === 'true');
+    if(!isDone){
       return {name:items[i], index:i, done:false};
     }
   }
@@ -1960,7 +2009,11 @@ function renderTable(){
     const dateLabel = p.mode==='exp'?(p.departure||''):(p.eta||'');
     const totalItems = (p.mode==='exp'?CHECKLIST_EXP:CHECKLIST_IMP).length;
     let done = 0;
-    Object.values(p.checklist||{}).forEach(v=>{if(v.done)done++;});
+    const chk = p.checklist || {};
+    for(let i = 0; i < totalItems; i++){
+      const v = chk['chk_'+i];
+      if(v && (v.done === true || v.done === 'true')) done++;
+    }
     const pct = Math.round((done/totalItems)*100);
     const statusPill = statusPillHtml(p.status||'NEW');
     return `
@@ -2421,7 +2474,6 @@ window.addEventListener('DOMContentLoaded',async()=>{
   initPickers();
   bindAutoResize();
 });
-</script>
 </script>
 </body>
 </html>
