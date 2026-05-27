@@ -296,6 +296,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .rev-breakdown-val.warn{color:var(--warn);}
 .rev-breakdown-divider{height:1px;background:var(--border);margin:6px 0;}
 @media(max-width:780px){.rev-summary-grid{grid-template-columns:1fr;}}
+.fees-total-bar{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:10px 14px;background:var(--imp-light);border:1px solid var(--imp-border);border-radius:3px;}
+.fees-total-label{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);}
+.fees-total-value{font-family:"IBM Plex Mono",monospace;font-size:18px;font-weight:700;color:var(--imp);}
 @media print{.app-nav,.form-actions,.modal-overlay{display:none!important;}.screen{padding:8px;}.section{break-inside:avoid;}}
 @media(max-width:780px){
   .dash-grid{grid-template-columns:1fr 1fr;}
@@ -1455,6 +1458,7 @@ function rowToProcess(r){
 
   return {
     id:            r.id || r.key || src.id,
+    key:           r.key || src.key || '',
     mode:          mode,
     status:        r.status  || src.status || 'NEW',
     fileNumber:    src.fileNumber  || src.file_number  || '',
@@ -1514,12 +1518,20 @@ function rowToProcess(r){
   };
 }
 function processToRow(p) {
-  // Generate timestamp in YYYYMMDD_HHmmss format
-  const now = new Date();
-  const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-  
-  // Create key in required format: afm_proc_{mode}_{timestamp}
-  const key = `afm_proc_${p.mode}_${timestamp}`;
+  // Use existing key if process already has one (preserves the record for upsert/update).
+  // Only generate a new timestamp-based key for brand-new processes.
+  let key;
+  if (p.key && String(p.key).startsWith('afm_proc_')) {
+    key = p.key;
+  } else if (p.id && !String(p.id).startsWith('p_')) {
+    // id is a UUID from Supabase — derive a stable key from it
+    key = `afm_proc_${p.mode}_${p.id}`;
+  } else {
+    // Brand-new local process: generate timestamp key
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
+    key = `afm_proc_${p.mode}_${timestamp}`;
+  }
 
   const pfx = p.mode === 'imp' ? 'i_' : 'e_';
 
@@ -1647,8 +1659,21 @@ async function saveProcessCloud(p){
     setSync('err', '✗ Save failed');
     saveLocal();
   } else {
+    // Propaga key e id retornados pelo Supabase de volta ao processo local
+    if(data && data[0]){
+      const saved = data[0];
+      const idx = processes.findIndex(x => x.id === p.id);
+      if(idx >= 0){
+        if(saved.id)  processes[idx].id  = saved.id;
+        if(saved.key) processes[idx].key = saved.key;
+      }
+      if(saved.id && currentEdit && currentEdit.id === p.id){
+        currentEdit.id = saved.id;
+      }
+    }
     setSync('ok','☁ Saved');
     showSaveToast();
+    saveLocal();
     if(typeof renderDashboard === 'function') renderDashboard();
     }
 }
@@ -2877,6 +2902,21 @@ $('imp-status-select').addEventListener('change',async function(){
   const p = processes.find(x=>x.id===currentEdit.id);
   if(p){p.status=this.value;p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
 });
+
+// ============================================
+// STATION FEES TOTAL
+// ============================================
+function calcFeesTotal(){
+  var total =
+    num(document.getElementById('i_fee_cfs')     ? document.getElementById('i_fee_cfs').value     : 0) +
+    num(document.getElementById('i_fee_airline') ? document.getElementById('i_fee_airline').value : 0) +
+    num(document.getElementById('i_fee_storage') ? document.getElementById('i_fee_storage').value : 0) +
+    num(document.getElementById('i_fee_waiting') ? document.getElementById('i_fee_waiting').value : 0) +
+    num(document.getElementById('i_fee_customs') ? document.getElementById('i_fee_customs').value : 0) +
+    num(document.getElementById('i_fee_other')   ? document.getElementById('i_fee_other').value   : 0);
+  var el = document.getElementById('i_fees_total');
+  if(el) el.textContent = '$ ' + total.toFixed(2);
+}
 
 // ============================================
 // EXPORT EXCEL / PDF / BACKUP
