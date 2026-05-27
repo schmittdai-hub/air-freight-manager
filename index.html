@@ -1085,7 +1085,7 @@ async function initSupabase(){
     cloudReady = true;
     setSync('ok','☁ Connected');
 
-    checkLocalData();
+   // checkLocalData();
 
   }catch(e){
     const msg = e?.message || e?.error_description || JSON.stringify(e);
