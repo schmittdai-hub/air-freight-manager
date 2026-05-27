@@ -1037,21 +1037,19 @@ async function loadFromCloud(){
 
   if(e1) throw e1;
 
-  // LOG DIAGNÓSTICO
-  const _sample = (procs || []).find(r => r.checklist && Object.keys(r.checklist||{}).length > 0);
-  if(_sample){
-    console.log('[DIAG] checklist RAW (file:', _sample.file_number, '):', JSON.stringify(_sample.checklist));
-  } else {
-    console.log('[DIAG] nenhum processo com checklist no Supabase');
+  // LOG DIAGNÓSTICO — ver todas as colunas do primeiro processo
+  if((procs||[]).length > 0){
+    const _first = procs[0];
+    console.log('[DIAG] Colunas do primeiro processo:', Object.keys(_first));
+    console.log('[DIAG] checklist:', JSON.stringify(_first.checklist));
+    console.log('[DIAG] data:', JSON.stringify(_first.data));
+    // procura qualquer key que contenha "chk" ou "check"
+    const chkKeys = Object.keys(_first).filter(k => k.toLowerCase().includes('chk') || k.toLowerCase().includes('check'));
+    console.log('[DIAG] Keys com chk/check:', chkKeys, chkKeys.map(k => JSON.stringify(_first[k])));
   }
 
   processes = (procs || []).map(rowToProcess);
   window.processes = processes;
-
-  const _sampleNorm = processes.find(p => p.checklist && Object.keys(p.checklist).length > 0);
-  if(_sampleNorm){
-    console.log('[DIAG] checklist NORMALIZADO (file:', _sampleNorm.fileNumber, '):', JSON.stringify(_sampleNorm.checklist));
-  }
 
   const {data:comps, error:e2} = await supa
     .from('companies')
