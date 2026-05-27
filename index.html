@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Air Freight Process Manager</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2949,129 +2949,155 @@ function exportExcel(){
   const MONTHS = ['January','February','March','April','May','June',
                   'July','August','September','October','November','December'];
 
-  // Parse MM/DD/YYYY or ISO date → Date object or null
   function parseAnyDate(s){
     if(!s) return null;
-    if(s.includes('T') || (s.includes('-') && s.length>=10)){
-      const d=new Date(s); return isNaN(d)?null:d;
-    }
+    if(s.includes('T')||(s.includes('-')&&s.length>=10)){const d=new Date(s);return isNaN(d)?null:d;}
     const p=s.split('/');
-    if(p.length>=3){ const d=new Date(+p[2],+p[0]-1,+p[1]); return isNaN(d)?null:d; }
+    if(p.length>=3){const d=new Date(+p[2],+p[0]-1,+p[1]);return isNaN(d)?null:d;}
     return null;
   }
 
-  // Get checklist item date/done by named key (e.g. 'nomination', 'dn_sent')
-  function chkByName(p, name){
-    const keys = p.mode==='imp' ? IMP_CHK_KEYS : EXP_CHK_KEYS;
-    const idx  = keys.indexOf(name);
-    if(idx < 0) return null;
-    const v = (p.checklist||{})['chk_'+idx];
-    if(!v) return null;
-    return { done: !!(v.done||v.checked), date: v.date||'' };
+  function chkByName(p,name){
+    const keys=p.mode==='imp'?IMP_CHK_KEYS:EXP_CHK_KEYS;
+    const idx=keys.indexOf(name);if(idx<0)return null;
+    const v=(p.checklist||{})['chk_'+idx];if(!v)return null;
+    return{done:!!(v.done||v.checked),date:v.date||''};
   }
 
-  // Nomination date: date of 'nomination' checklist item
+  function fmtDate(d){
+    if(!d)return'';
+    return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear();
+  }
+
   function getNomination(p){
-    const item = chkByName(p, 'nomination');
-    if(!item || !item.date) return '';
-    const d = parseAnyDate(item.date);
-    if(!d) return item.date;
-    return (d.getMonth()+1).toString().padStart(2,'0') + '/' +
-            d.getDate().toString().padStart(2,'0') + '/' + d.getFullYear();
+    const item=chkByName(p,'nomination');if(!item||!item.date)return'';
+    const d=parseAnyDate(item.date);return d?fmtDate(d):item.date;
   }
 
-  // Billing: month name from 'dn_sent' checklist item date
   function getBilling(p){
-    const item = chkByName(p, 'dn_sent');
-    if(!item || !item.date) return '';
-    const d = parseAnyDate(item.date);
-    if(!d) return '';
-    return MONTHS[d.getMonth()];
+    const item=chkByName(p,'dn_sent');if(!item||!item.date)return'';
+    const d=parseAnyDate(item.date);return d?MONTHS[d.getMonth()]:'';
   }
 
-  // Last checked item date (most recent date among done items)
   function getLastUpdate(p){
-    const items = p.mode==='exp' ? EXP_CHECKLIST : IMP_CHECKLIST;
-    const chk   = p.checklist || {};
-    let latest  = null;
+    const items=p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+    const chk=p.checklist||{};let latest=null;
     items.forEach((_,i)=>{
-      const v = chk['chk_'+i];
-      if(v && (v.done||v.checked) && v.date){
-        const d = parseAnyDate(v.date);
-        if(d && (!latest || d > latest)) latest = d;
-      }
+      const v=chk['chk_'+i];
+      if(v&&(v.done||v.checked)&&v.date){const d=parseAnyDate(v.date);if(d&&(!latest||d>latest))latest=d;}
     });
-    if(!latest) return '';
-    return (latest.getMonth()+1).toString().padStart(2,'0') + '/' +
-            latest.getDate().toString().padStart(2,'0') + '/' + latest.getFullYear();
+    return latest?fmtDate(latest):'';
   }
 
-  // Total pieces from volumes
   function getTotalPieces(p){
-    const vols = p.volumes || [];
-    return vols.reduce((s,v)=>s+(parseInt(v.pcs)||0), 0) || '';
+    return(p.volumes||[]).reduce((s,v)=>s+(parseInt(v.pcs)||0),0)||'';
   }
 
-  // Gross weight from volumes (sum of wkg)
   function getGrossWeight(p){
-    const vols = p.volumes || [];
-    const total = vols.reduce((s,v)=>s+(parseFloat(v.wkg)||0), 0);
-    return total > 0 ? total : (p.cassWeight || '');
+    const total=(p.volumes||[]).reduce((s,v)=>s+(parseFloat(String(v.wkg||'').replace(',','.'))||0),0);
+    return total>0?total:(parseFloat(String(p.cassWeight||'').replace(',','.'))||'');
   }
 
-  // Parse revenue/profit as plain number with dot decimal
-  function toNum(v){ return v ? (parseFloat(String(v).replace(',','.')) || '') : ''; }
+  // Parse monetary value → JS number (handles both dot and comma as decimal)
+  function toMoney(v){
+    if(v===''||v===null||v===undefined)return null;
+    const n=parseFloat(String(v).replace(',','.'));
+    return isNaN(n)?null:n;
+  }
 
-  const COLS = ['Nomination','Billing','Agent','Ops.','Shipment Type','Airline',
-                'HAWB','SCL File No','MAWB Number','Client','Pieces','Weight',
-                'Reference #','Notes','Update','Revenue','Profit'];
+  // Build data rows
+  const HEADERS = ['Nomination','Billing','Agent','Ops.','Shipment Type','Airline',
+                   'HAWB','SCL File No','MAWB Number','Client','Pieces','Weight',
+                   'Reference #','Notes','Update','Revenue','Profit'];
+  const COL_WIDTHS = [14,10,14,10,14,10,16,14,18,30,8,10,24,44,12,14,14];
+  const MONEY_COLS = new Set(['Revenue','Profit']); // columns that must be numeric
 
-  const rows = processes.map(p=>({
-    'Nomination':    getNomination(p),
-    'Billing':       getBilling(p),
-    'Agent':         p.agent || '',
-    'Ops.':          'Daiane',
-    'Shipment Type': p.mode==='exp' ? 'Air Export' : 'Air Import',
-    'Airline':       p.airline || '',
-    'HAWB':          p.hawb || '',
-    'SCL File No':   p.fileNumber || '',
-    'MAWB Number':   p.mawb || '',
-    'Client':        p.mode==='exp' ? (p.shipper||'') : (p.consignee||''),
-    'Pieces':        getTotalPieces(p),
-    'Weight':        getGrossWeight(p),
-    'Reference #':   p.reference || '',
-    'Notes':         p.agentUpdate || '',
-    'Update':        getLastUpdate(p),
-    'Revenue':       toNum(p.revenue),
-    'Profit':        toNum(p.profit)
-  }));
+  const dataRows = processes.map(p=>[
+    getNomination(p),
+    getBilling(p),
+    p.agent||'',
+    'Daiane',
+    p.mode==='exp'?'Air Export':'Air Import',
+    p.airline||'',
+    p.hawb||'',
+    p.fileNumber||'',
+    p.mawb||'',
+    p.mode==='exp'?(p.shipper||''):(p.consignee||''),
+    getTotalPieces(p),
+    getGrossWeight(p),
+    p.reference||'',
+    p.agentUpdate||'',
+    getLastUpdate(p),
+    toMoney(p.revenue),
+    toMoney(p.profit)
+  ]);
 
-  const ws = XLSX.utils.json_to_sheet(rows);
+  // ── Build workbook with ExcelJS ──
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Processes');
+
+  // Header row
+  ws.addRow(HEADERS);
+  const headerRow = ws.getRow(1);
+  headerRow.font = {bold:true, name:'Calibri', size:11};
+  headerRow.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1A4F8A'}};
+  headerRow.font = {bold:true, name:'Calibri', size:11, color:{argb:'FFFFFFFF'}};
+  headerRow.alignment = {vertical:'middle', horizontal:'center'};
+  headerRow.height = 20;
 
   // Column widths
-  const colWidths = [12,10,12,10,14,10,14,14,16,28,8,10,22,40,12,12,12];
-  ws['!cols'] = colWidths.map(w=>({wch:w}));
+  ws.columns = HEADERS.map((h,i)=>({header:h, width:COL_WIDTHS[i]}));
 
-  // ── Highlight empty cells with light yellow fill ──
-  const FILL_YELLOW = { patternType:'solid', fgColor:{ rgb:'FFFDE7' } };
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for(let R = range.s.r + 1; R <= range.e.r; R++){   // skip header row
-    for(let C = range.s.c; C <= range.e.c; C++){
-      const addr = XLSX.utils.encode_cell({r:R, c:C});
-      const cell = ws[addr];
-      const isEmpty = !cell || cell.v === '' || cell.v === null || cell.v === undefined;
+  // Data rows
+  dataRows.forEach(rowData=>{
+    const row = ws.addRow(rowData);
+    row.height = 16;
+
+    HEADERS.forEach((h,ci)=>{
+      const cell = row.getCell(ci+1);
+      const val  = rowData[ci];
+      const isEmpty = val===null||val===undefined||val==='';
+
+      // Yellow fill for empty cells
       if(isEmpty){
-        if(!ws[addr]) ws[addr] = {t:'s', v:''};
-        ws[addr].s = { fill: FILL_YELLOW };
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF9C4'}};
       }
-    }
-  }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Processes');
-  // write with cellStyles enabled
-  XLSX.writeFile(wb,'air_freight_'+new Date().toISOString().slice(0,10)+'.xlsx', {cellStyles:true});
+      // Number format for money columns
+      if(MONEY_COLS.has(h)){
+        if(!isEmpty && val!==null){
+          cell.numFmt = '"$"#,##0.00';  // Excel will display with its own locale but store as number
+          cell.value  = val;            // already a JS float — no comma issue
+        }
+      }
+
+      // Thin border on all cells
+      cell.border = {
+        top:   {style:'thin', color:{argb:'FFD8D5CE'}},
+        left:  {style:'thin', color:{argb:'FFD8D5CE'}},
+        bottom:{style:'thin', color:{argb:'FFD8D5CE'}},
+        right: {style:'thin', color:{argb:'FFD8D5CE'}}
+      };
+
+      cell.alignment = {vertical:'middle', wrapText: h==='Notes'};
+    });
+  });
+
+  // Freeze header row
+  ws.views = [{state:'frozen', ySplit:1}];
+
+  // Write and download
+  wb.xlsx.writeBuffer().then(function(buffer){
+    const blob = new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'air_freight_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 }
+
 
 function exportPDF(mode){
   const { jsPDF } = window.jspdf;
