@@ -1960,12 +1960,13 @@ function renderDashboard(){
   const expRev = processes.filter(p=>p.mode==='exp').reduce((s,p)=>s+(Number(p.revenue)||0),0);
   const impRev = processes.filter(p=>p.mode==='imp').reduce((s,p)=>s+(Number(p.revenue)||0),0);
 
- ```javascript $('dash-revenue').innerHTML = ` <div class="dash-card no-click"><div class="dash-card-label">Total Revenue</div><div class="dash-card-value accent">
-$${totalRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
-  <div class="dash-card no-click"><div class="dash-card-label">Total Profit</div><div class="dash-card-value green">$$
-{totalProfit.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div> <div class="dash-card no-click"><div class="dash-card-label">Export Revenue</div><div class="dash-card-value accent">
-$${expRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
-  <div class="dash-card no-click"><div class="dash-card-label">Import Revenue</div><div class="dash-card-value imp">$${impRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+$('dash-revenue').innerHTML = `
+  <div class="dash-card no-click"><div class="dash-card-label">Total Revenue</div><div class="dash-card-value accent">$$
+{totalRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div> <div class="dash-card no-click"><div class="dash-card-label">Total Profit</div><div class="dash-card-value green">
+$${totalProfit.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+  <div class="dash-card no-click"><div class="dash-card-label">Export Revenue</div><div class="dash-card-value accent">$$
+{expRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div> <div class="dash-card no-click"><div class="dash-card-label">Import Revenue</div><div class="dash-card-value imp">
+$${impRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
 `;
 
   // Alerts
