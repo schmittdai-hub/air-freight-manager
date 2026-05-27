@@ -2004,7 +2004,7 @@ $${impRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:
       <td>${daysOpenBadge(p)}</td>
     </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-hint);padding:16px">No processes yet</td></tr>';
 
-  // Revenue
+   // Revenue
   $('dash-revenue').innerHTML = `
     <div class="dash-card no-click"><div class="dash-card-label">Total Revenue</div><div class="dash-card-value accent">$$
 {totalRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div> <div class="dash-card no-click"><div class="dash-card-label">Total Profit</div><div class="dash-card-value green">
@@ -2013,6 +2013,7 @@ $${totalProfit.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDi
 {expRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div> <div class="dash-card no-click"><div class="dash-card-label">Import Revenue</div><div class="dash-card-value imp">
 $${impRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
   `;
+}
 function filterAndGo(mode,status){
   $('f-mode').value = mode;
   $('f-status').value = status;
