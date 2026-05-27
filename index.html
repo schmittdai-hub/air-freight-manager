@@ -1073,7 +1073,7 @@ async function loadFromCloud(){
   const {data:procs, error:e1} = await supa
     .from('processes')
     .select('*')
-    .order('updated_at',{ascending:false});
+    .order('updatedAt',{ascending:false});
 
   if(e1) throw e1;
 
@@ -1127,7 +1127,7 @@ function normalizeVolumes(vols){
 
 
 // Normaliza checklist para o formato {chk_N:{done,date}} que o app usa
-function normalizeChecklist(raw, mode){
+function normalizeChecklist(raw){
   if(!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out = {};
   Object.keys(raw).forEach(k => {
@@ -1145,99 +1145,85 @@ function normalizeChecklist(raw, mode){
 }
 
 function rowToProcess(r){
-  // 🔧 Compat layer: se vier no formato antigo (JSONB "data" com prefixos i_/e_),
-  // achata tudo para o formato esperado pelo restante do app.
-  let src = r;
-  if(r.data && typeof r.data === 'object'){
-    const prefix = r.mode === 'imp' ? 'i_' : 'e_';
-    const flat = {};
-    Object.keys(r.data).forEach(k=>{
-      const nk = k.startsWith(prefix) ? k.slice(prefix.length) : k;
-      flat[nk] = r.data[k];
-    });
-    // mescla: raiz sobrescreve data, mas só se o valor não for null/undefined
-    const merged = { ...flat };
-    Object.keys(r).forEach(k => {
-      if(r[k] !== null && r[k] !== undefined) merged[k] = r[k];
-    });
-    src = merged;
-  }
+  // DB stores camelCase columns directly (matches backup format)
   return{
-    id:src.id, mode:src.mode, status:src.status||'NEW',
-    fileNumber: src.file_number ?? src.fileNumber,
-    mawb: src.mawb, hawb: src.hawb, airline: src.airline,
-    origin: src.origin, dest: src.dest, agent: src.agent, reference: src.reference,
-    dg: src.dg, dgType: src.dg_type ?? src.dgType, dgDesc: src.dg_desc ?? src.dgDesc,
-    security: src.security ?? src.sec, lv: src.lv,
-    declaredValue: src.declared_value ?? src.declaredValue,
-    htsCode: src.hts_code ?? src.htsCode,
-    aesItn: src.aes_itn ?? src.aesItn,
-    shipper: src.shipper,
-    shipperAddress: src.shipper_address ?? src.shipperAddress,
-    consignee: src.consignee,
-    consigneeAddress: src.consignee_address ?? src.consigneeAddress,
-    legs: src.legs || [],
-    cutoff: src.cutoff, departure: src.departure, etd: src.etd, eta: src.eta,
-    cassWeight: src.cass_weight ?? src.cassWeight,
-    chargeable: src.chargeable,
-    bookingSource: src.booking_source ?? src.bookingSource ?? src.bsource,
-    airfreightCost: src.airfreight_cost ?? src.airfreightCost ?? src.airfreight_cost_val,
-    volumes: normalizeVolumes(src.volumes || src.vols),
-    puFromMode: src.pu_from_mode ?? src.puFromMode ?? src.pu_mode,
-    puFromAddress: src.pu_from_address ?? src.puFromAddress,
-    puDate: src.pu_date ?? src.puDate,
-    transferDate: src.transfer_date ?? src.transferDate,
-    trucker: src.trucker,
-    carrier: src.carrier, cfs: src.cfs,
-    inlandCost: src.inland_cost ?? src.inlandCost,
-    cfsCost: src.cfs_cost ?? src.cfsCost,
-    customsBroker: src.customs_broker ?? src.customsBroker,
-    incoterm: src.incoterm, ies: src.ies,
-    entryNumber: src.entry_number ?? src.entryNumber,
-    entryDate: src.entry_date ?? src.entryDate,
-    releaseDate: src.release_date ?? src.releaseDate,
-    feeDuty: src.fee_duty ?? src.feeDuty,
-    feeMpf: src.fee_mpf ?? src.feeMpf,
-    feeHmf: src.fee_hmf ?? src.feeHmf,
-    feeBroker: src.fee_broker ?? src.feeBroker,
-    feeIsf: src.fee_isf ?? src.feeIsf,
-    feeOther: src.fee_other ?? src.feeOther,
-    deliveryDate: src.delivery_date ?? src.deliveryDate,
-    deliveryAddress: src.delivery_address ?? src.deliveryAddress,
-    pod: src.pod,
-    deliveryCost: src.delivery_cost ?? src.deliveryCost,
-    checklist: normalizeChecklist(src.checklist, src.mode || r.mode),
-    comments: src.comments,
-    agentUpdate: src.agent_update ?? src.agentUpdate,
-    revenue: src.revenue, profit: src.profit,
-    createdAt: src.created_at ?? src.createdAt,
-    updatedAt: src.updated_at ?? src.updatedAt
+    id: r.id,
+    mode: r.mode,
+    status: r.status || 'NEW',
+    fileNumber: r.fileNumber || r.file_number || '',
+    mawb: r.mawb || '',
+    hawb: r.hawb || '',
+    airline: r.airline || '',
+    origin: r.origin || '',
+    dest: r.dest || '',
+    agent: r.agent || '',
+    reference: r.reference || '',
+    dg: r.dg || 'non-dg',
+    dgType: r.dgType || r.dg_type || 'pax',
+    dgDesc: r.dgDesc || r.dg_desc || '',
+    security: r.security || 'known',
+    lv: r.lv || 'yes',
+    declaredValue: r.declaredValue || r.declared_value || '',
+    htsCode: r.htsCode || r.hts_code || '',
+    aesItn: r.aesItn || r.aes_itn || '',
+    shipper: r.shipper || '',
+    shipperAddress: r.shipperAddress || r.shipper_address || '',
+    consignee: r.consignee || '',
+    consigneeAddress: r.consigneeAddress || r.consignee_address || '',
+    legs: r.legs || [],
+    cutoff: r.cutoff || '',
+    departure: r.departure || '',
+    eta: r.eta || '',
+    cassWeight: r.cassWeight || r.cass_weight || '',
+    chargeable: r.chargeable || '',
+    bookingSource: r.bookingSource || r.booking_source || 'Airline Direct',
+    airfreightCost: r.airfreightCost || r.airfreight_cost || '',
+    volumes: normalizeVolumes(r.volumes || r.vols),
+    puFromMode: r.puFromMode || r.pu_from_mode || 'same',
+    puFromAddress: r.puFromAddress || r.pu_from_address || '',
+    puDate: r.puDate || r.pu_date || '',
+    transferDate: r.transferDate || r.transfer_date || '',
+    trucker: r.trucker || '',
+    carrier: r.carrier || 'FA',
+    cfs: r.cfs || '',
+    inlandCost: r.inlandCost || r.inland_cost || '',
+    cfsCost: r.cfsCost || r.cfs_cost || '',
+    customsBroker: r.customsBroker || r.customs_broker || '',
+    incoterm: r.incoterm || '',
+    ies: r.ies || 'yes',
+    feeOther: r.feeOther || r.fee_other || '',
+    checklist: normalizeChecklist(r.checklist),
+    comments: r.comments || '',
+    revenue: r.revenue || '',
+    profit: r.profit || '',
+    createdAt: r.createdAt || r.created_at || '',
+    updatedAt: r.updatedAt || r.updated_at || ''
   };
 }
 
 function processToRow(p){
+  // Save with camelCase to match the actual Supabase column names
   return{
     id:p.id, mode:p.mode, status:p.status||'NEW',
-    file_number:p.fileNumber, mawb:p.mawb, hawb:p.hawb, airline:p.airline,
+    fileNumber:p.fileNumber, mawb:p.mawb, hawb:p.hawb, airline:p.airline,
     origin:p.origin, dest:p.dest, agent:p.agent, reference:p.reference,
-    dg:p.dg, dg_type:p.dgType, dg_desc:p.dgDesc,
-    security:p.security, lv:p.lv, declared_value:p.declaredValue, hts_code:p.htsCode, aes_itn:p.aesItn,
-    shipper:p.shipper, shipper_address:p.shipperAddress,
-    consignee:p.consignee, consignee_address:p.consigneeAddress,
-    legs:p.legs||[], cutoff:p.cutoff, departure:p.departure, etd:p.etd, eta:p.eta,
-    cass_weight:p.cassWeight, chargeable:p.chargeable, booking_source:p.bookingSource,
-    airfreight_cost:p.airfreightCost, volumes:p.volumes||[],
-    pu_from_mode:p.puFromMode, pu_from_address:p.puFromAddress,
-    pu_date:p.puDate, transfer_date:p.transferDate, trucker:p.trucker,
-    carrier:p.carrier, cfs:p.cfs, inland_cost:p.inlandCost, cfs_cost:p.cfsCost,
-    customs_broker:p.customsBroker, incoterm:p.incoterm, ies:p.ies,
-    entry_number:p.entryNumber, entry_date:p.entryDate, release_date:p.releaseDate,
-    fee_duty:p.feeDuty, fee_mpf:p.feeMpf, fee_hmf:p.feeHmf,
-    fee_broker:p.feeBroker, fee_isf:p.feeIsf, fee_other:p.feeOther,
-    delivery_date:p.deliveryDate, delivery_address:p.deliveryAddress, pod:p.pod, delivery_cost:p.deliveryCost,
-    checklist:p.checklist||{}, comments:p.comments, agent_update:p.agentUpdate,
+    dg:p.dg, dgDesc:p.dgDesc,
+    security:p.security, lv:p.lv, declaredValue:p.declaredValue,
+    htsCode:p.htsCode, aesItn:p.aesItn,
+    shipper:p.shipper, shipperAddress:p.shipperAddress,
+    consignee:p.consignee, consigneeAddress:p.consigneeAddress,
+    legs:p.legs||[], cutoff:p.cutoff, departure:p.departure, eta:p.eta,
+    cassWeight:p.cassWeight, chargeable:p.chargeable,
+    bookingSource:p.bookingSource, airfreightCost:p.airfreightCost,
+    volumes:p.volumes||[],
+    puFromMode:p.puFromMode, puFromAddress:p.puFromAddress,
+    puDate:p.puDate, transferDate:p.transferDate, trucker:p.trucker,
+    carrier:p.carrier, cfs:p.cfs, inlandCost:p.inlandCost, cfsCost:p.cfsCost,
+    customsBroker:p.customsBroker, incoterm:p.incoterm, ies:p.ies,
+    feeOther:p.feeOther,
+    checklist:p.checklist||{}, comments:p.comments,
     revenue:p.revenue, profit:p.profit,
-    updated_at:new Date().toISOString()
+    updatedAt:new Date().toISOString()
   };
 }
 
@@ -1253,10 +1239,7 @@ async function saveProcessCloud(p){
   }
 
   const row = processToRow(p);
-
-  if(!row.created_at){
-    row.created_at = p.createdAt || new Date().toISOString();
-  }
+  if(!row.createdAt) row.createdAt = p.createdAt || new Date().toISOString();
 
   setSync('saving','⏳ Saving…');
 
@@ -1468,8 +1451,8 @@ function eDGT(t){
   else{$('e_lbl_cao').classList.add('active-dg');$('e_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=e_dgsub][value=cao]').checked=true;}
 }
 function iDGT(t){
-  if(t==='pax'){$('i_lbl_ipax').classList.add('active-dg');$('i_lbl_icao').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=pax]').checked=true;}
-  else{$('i_lbl_icao').classList.add('active-dg');$('i_lbl_ipax').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=cao]').checked=true;}
+  if(t==='pax'){$('i_lbl_pax').classList.add('active-dg');$('i_lbl_cao').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=pax]').checked=true;}
+  else{$('i_lbl_cao').classList.add('active-dg');$('i_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=cao]').checked=true;}
 }
 function eLV(yes){
   if(yes){$('e_lbl_lv_yes').classList.add('active');$('e_lbl_lv_no').classList.remove('active');$('e_lv_fields').classList.add('visible');document.querySelector('input[name=e_lv][value=yes]').checked=true;}
@@ -1481,15 +1464,22 @@ function setPUFrom(mode){
 }
 function selectCarrier(prefix,val){
   document.querySelectorAll('#'+prefix+'_carrier_wrap .carrier-btn').forEach(b=>b.classList.remove('selected'));
-  document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn[data-val="'+val+'"]').classList.add('selected');
-  $(prefix+'_carrier_val').value = val;
+  const cb = document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn[data-val="'+val+'"]')
+          || document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn');
+  if(cb) cb.classList.add('selected');
+  if($(prefix+'_carrier_val')) $(prefix+'_carrier_val').value = val||'FA';
 }
 function selectBSource(prefix,val){
   document.querySelectorAll('#'+prefix+'_bsource_wrap .bsource-btn').forEach(b=>b.classList.remove('selected'));
-  document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn[data-val="'+val+'"]').classList.add('selected');
-  $(prefix+'_bsource_val').value = val;
-  if(val==='Other'){$(prefix+'_bsource_other_wrap').classList.add('visible');}
-  else{$(prefix+'_bsource_other_wrap').classList.remove('visible');$(prefix+'_bsource_other').value='';}
+  const sb = document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn[data-val="'+val+'"]')
+           || document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn');
+  if(sb) sb.classList.add('selected');
+  if($(prefix+'_bsource_val')) $(prefix+'_bsource_val').value = val||'Airline Direct';
+  const otherWrap = $(prefix+'_bsource_other_wrap');
+  if(otherWrap){
+    if(val==='Other') otherWrap.classList.add('visible');
+    else { otherWrap.classList.remove('visible'); if($(prefix+'_bsource_other')) $(prefix+'_bsource_other').value=''; }
+  }
 }
 
 // ============================================
@@ -1749,7 +1739,7 @@ function newProcess(mode){
     $('exp-days-open').textContent='';
     showScreen('exp');
   }else{
-    $('i_legs').innerHTML='';addLeg('i');
+    if($('i_legs')){$('i_legs').innerHTML='';addLeg('i');}
     $('i_vols').innerHTML='';addVolume('i');
     buildChecklist('i',null,{});
     $('imp-status-select').value='NEW';
@@ -1780,12 +1770,17 @@ function clearForm(mode){
 
 function editProcess(id){
   const p = processes.find(x=>x.id===id);
-  if(!p)return;
-  currentEdit = {mode:p.mode, id};
-  if(p.mode==='exp')loadExport(p);else loadImport(p);
-  showScreen(p.mode);
-  bindAutoResize();
-  initPickers();
+  if(!p){ console.error('Process not found:', id); return; }
+  try{
+    currentEdit = {mode:p.mode, id};
+    if(p.mode==='exp') loadExport(p); else loadImport(p);
+    showScreen(p.mode);
+    bindAutoResize();
+    initPickers();
+  }catch(err){
+    console.error('editProcess error:', err);
+    alert('Error opening process: ' + err.message);
+  }
 }
 
 function loadExport(p){
