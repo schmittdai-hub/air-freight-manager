@@ -1923,7 +1923,9 @@ function renumberLegs(prefix){
 }
 function collectLegs(prefix){
   const out = [];
-  $(prefix+'_legs').querySelectorAll('.route-stop').forEach(s=>{
+  const wrap = $(prefix+'_legs');
+  if(!wrap) return out;
+  wrap.querySelectorAll('.route-stop').forEach(s=>{
     out.push({
       flight:s.querySelector('.leg-flight').value.trim(),
       from:s.querySelector('.leg-from').value.trim().toUpperCase(),
