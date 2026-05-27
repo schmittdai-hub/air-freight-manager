@@ -299,9 +299,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 <nav class="app-nav">
   <div class="nav-brand">Air Freight <span>Manager</span></div>
   <div class="nav-tabs">
-  <button class="nav-tab dash" id="tab-dash" onclick="showScreen('dash'); renderDashboard();">
-  📊 Dashboard
-</button>
+  <button class="nav-tab dash" id="tab-dash" onclick="showScreen('dash')">📊 Dashboard</button>
     <button class="nav-tab active" id="tab-list" onclick="showScreen('list')">All Processes</button>
     <button class="nav-tab" id="tab-exp-new" onclick="newProcess('exp')">+ New Export</button>
     <button class="nav-tab imp" id="tab-imp-new" onclick="newProcess('imp')">+ New Import</button>
@@ -343,7 +341,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   </div>
 </div>
 
-<div class="screen" id="screen-dash">
+<div class="screen" id="screen-dash" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
     <div style="font-size:20px;font-weight:600;letter-spacing:-.02em;">Dashboard</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)" id="dash-updated"></div>
@@ -420,7 +418,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   </div>
 </div>
 
-<div class="screen" id="screen-exp">
+<div class="screen" id="screen-exp" style="display:none">
   <div class="form-topbar">
     <div>
       <div class="doc-label">Air Freight Shipment</div>
@@ -691,7 +689,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   </div>
 </div>
 
-<div class="screen" id="screen-imp">
+<div class="screen" id="screen-imp" style="display:none">
   <div class="form-topbar imp-mode">
     <div>
       <div class="doc-label">Air Freight Shipment</div>
@@ -944,7 +942,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 // SUPABASE CONFIGURATION
 // ============================================
 const SUPABASE_URL = 'https://swssbmixursxuslgssql.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_YgmSXrf2d7ViicpcyCajqQ_9X-WxGcz';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c3NibWl4dXJzeHVzbGdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjUxNDIsImV4cCI6MjA5MjkwMTE0Mn0.QPuGtqjWC5ZXkibf69OC2rBCDvkIZKDLlyQXlCpvVCw'; // ⚠ Supabase → Project Settings → API → "anon public" (starts with eyJ...)
 let supa = null;
 let cloudReady = false;
 
@@ -1015,6 +1013,13 @@ async function initSupabase(){
     loadLocal();
     return;
   }
+  if(!SUPABASE_KEY || !SUPABASE_KEY.startsWith('eyJ')){
+    console.error('Supabase init failed: invalid API key format. Use the "anon public" JWT key from Project Settings → API, not a publishable key.');
+    setSync('err','✗ Invalid API key');
+    cloudReady=false;
+    loadLocal();
+    return;
+  }
   try{
     supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     setSync('saving','⏳ Loading…');
@@ -1023,7 +1028,8 @@ async function initSupabase(){
     setSync('ok','☁ Connected');
     checkLocalData();
   }catch(e){
-    console.error('Supabase init failed:',e);
+    const msg = e?.message || e?.error_description || JSON.stringify(e);
+    console.error('Supabase init failed:', msg, e);
     setSync('err','✗ Offline mode');
     cloudReady=false;
     loadLocal();
@@ -1273,9 +1279,16 @@ function dismissMigrate(){$('migrate-banner').style.display='none';}
 // SCREEN NAVIGATION
 // ============================================
 function showScreen(s){
-  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(x=>{
+    x.classList.remove('active');
+    x.style.display='none';
+  });
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
-  $('screen-'+s).classList.add('active');
+  const target = $('screen-'+s);
+  if(target){
+    target.classList.add('active');
+    target.style.display='block';
+  }
   if(s==='list'){$('tab-list').classList.add('active');renderTable();}
   else if(s==='dash'){$('tab-dash').classList.add('active');renderDashboard();}
   else if(s==='exp'){$('tab-exp-new').classList.add('active');}
