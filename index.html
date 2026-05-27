@@ -1392,8 +1392,8 @@ async function saveProcessCloud(p){
     setSync('ok','☁ Saved');
     showSaveToast();
     if(typeof renderDashboard === 'function') renderDashboard();
-  }
-
+    }
+}
 async function deleteProcessCloud(id){
   if(!cloudReady)return;
   setSync('saving','⏳ Deleting…');
