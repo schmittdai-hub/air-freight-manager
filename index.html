@@ -1338,35 +1338,61 @@ function processToRow(p){
   };
 }
 
+// 🧹 Função utilitária — FORA do saveProcessCloud
+function sanitizeRow(obj){
+  const clean = {};
+  for(const k in obj){
+    let v = obj[k];
+
+    // pula undefined
+    if(v === undefined) continue;
+
+    // strings vazias viram null (evita erro em colunas date/numeric)
+    if(v === '') v = null;
+
+    // objetos aninhados (jsonb) – mantém como está
+    clean[k] = v;
+  }
+  return clean;
+}
+
+// 💾 Função principal de save
 async function saveProcessCloud(p){
   if(!cloudReady){
     saveLocal();
-
-    if(typeof renderDashboard === 'function'){
-      renderDashboard();
-    }
-
+    if(typeof renderDashboard === 'function') renderDashboard();
     return;
   }
 
-  const row = processToRow(p);
+  // 👇 aplicando sanitização aqui
+  const row = sanitizeRow(processToRow(p));
   setSync('saving','⏳ Saving…');
 
-  const {error} = await supa.from('processes').upsert(row);
+  // 🔎 Log do payload para inspeção
+  console.log('📤 Payload enviado ao Supabase:', row);
+
+  const { data, error } = await supa
+    .from('processes')
+    .upsert(row)
+    .select();
 
   if(error){
-    console.error('Save error:',error);
-    setSync('err','✗ Save failed');
+    // 🔎 Detalhamento completo do erro
+    console.group('❌ Supabase Save Error');
+    console.error('message:', error.message);
+    console.error('details:', error.details);
+    console.error('hint:   ', error.hint);
+    console.error('code:   ', error.code);
+    console.error('payload:', JSON.stringify(row, null, 2));
+    console.groupEnd();
+
+    setSync('err', '✗ Save failed');
     saveLocal();
-  }else{
+  } else {
     setSync('ok','☁ Saved');
     showSaveToast();
-
-    if(typeof renderDashboard === 'function'){
-      renderDashboard();
-    }
+    if(typeof renderDashboard === 'function') renderDashboard();
   }
-}
 
 async function deleteProcessCloud(id){
   if(!cloudReady)return;
