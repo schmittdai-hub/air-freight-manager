@@ -297,8 +297,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .rev-breakdown-divider{height:1px;background:var(--border);margin:6px 0;}
 @media(max-width:780px){.rev-summary-grid{grid-template-columns:1fr;}}
 .fees-total-bar{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:10px 14px;background:var(--imp-light);border:1px solid var(--imp-border);border-radius:3px;}
-.fees-total-label{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);}
-.fees-total-value{font-family:"IBM Plex Mono",monospace;font-size:18px;font-weight:700;color:var(--imp);}
+.fees-total-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);}
+.fees-total-value{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:var(--imp);}
 @media print{.app-nav,.form-actions,.modal-overlay{display:none!important;}.screen{padding:8px;}.section{break-inside:avoid;}}
 @media(max-width:780px){
   .dash-grid{grid-template-columns:1fr 1fr;}
@@ -591,7 +591,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
         </div>
         <div class="cost-inline" style="align-self:end;">
           <span class="cost-inline-label">✈️ Air Freight Charges ($)</span>
-          <input class="cost-inline-input" type="number" id="e_airfreight_cost" placeholder="0.00" step="0.01">
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="e_airfreight_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
         </div>
       </div>
     </div>
@@ -667,11 +667,11 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div class="fields-grid cols-2">
         <div class="cost-inline">
           <span class="cost-inline-label">💵 Inland Freight Cost ($)</span>
-          <input class="cost-inline-input" type="number" id="e_inland_cost" placeholder="0.00" step="0.01">
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="e_inland_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
         </div>
         <div class="cost-inline">
           <span class="cost-inline-label">🏭 Warehouse / CFS Cost ($)</span>
-          <input class="cost-inline-input" type="number" id="e_cfs_cost" placeholder="0.00" step="0.01">
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="e_cfs_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
         </div>
       </div>
     </div>
@@ -713,8 +713,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <div class="section-header"><span class="section-title">9 · File Revenue & Profit</span></div>
     <div class="section-body">
       <div class="revenue-grid">
-        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="number" id="e_revenue" placeholder="0.00" step="0.01"></div>
-        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="number" id="e_profit" placeholder="0.00" step="0.01"></div>
+        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="text" inputmode="decimal" id="e_revenue" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
+        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="text" inputmode="decimal" id="e_profit" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
       </div>
     </div>
   </div>
@@ -866,7 +866,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div class="fields-grid cols-2">
         <div class="cost-inline">
           <span class="cost-inline-label">💵 Inland Freight Cost ($)</span>
-          <input class="cost-inline-input" type="number" id="i_inland_cost" placeholder="0.00" step="0.01">
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="i_inland_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
         </div>
         <div class="field"><label>Chargeable Weight</label><input type="text" id="i_chargeable" placeholder=""></div>
       </div>
@@ -922,12 +922,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <div class="section-header imp-hdr"><span class="section-title">6 · Station Fees — Payables</span></div>
     <div class="section-body">
       <div class="fees-grid">
-        <div class="fee-row"><span class="fee-label">CFS Station ($)</span><input class="fee-input" type="number" id="i_fee_cfs" placeholder="0.00" step="0.01" oninput="calcFeesTotal()"></div>
-        <div class="fee-row"><span class="fee-label">Airline Fee ($)</span><input class="fee-input" type="number" id="i_fee_airline" placeholder="0.00" step="0.01" oninput="calcFeesTotal()"></div>
-        <div class="fee-row"><span class="fee-label">Storage ($)</span><input class="fee-input" type="number" id="i_fee_storage" placeholder="0.00" step="0.01" oninput="calcFeesTotal()"></div>
-        <div class="fee-row"><span class="fee-label">Waiting Time ($)</span><input class="fee-input" type="number" id="i_fee_waiting" placeholder="0.00" step="0.01" oninput="calcFeesTotal()"></div>
-        <div class="fee-row"><span class="fee-label">Magic / Customs ($)</span><input class="fee-input" type="number" id="i_fee_customs" placeholder="0.00" step="0.01" oninput="calcFeesTotal()"></div>
-        <div class="fee-row"><span class="fee-label">Other ($)</span><input class="fee-input" type="number" id="i_fee_other" placeholder="0.00" step="0.01" oninput="calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">CFS Station ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_cfs" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Airline Fee ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_airline" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Storage ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_storage" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Waiting Time ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_waiting" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Magic / Customs ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_customs" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Other ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_other" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
       </div>
       <div class="fees-total-bar">
         <span class="fees-total-label">Total Payables:</span>
@@ -957,8 +957,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <div class="section-header imp-hdr"><span class="section-title">9 · File Revenue & Profit</span></div>
     <div class="section-body">
       <div class="revenue-grid">
-        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="number" id="i_revenue" placeholder="0.00" step="0.01"></div>
-        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="number" id="i_profit" placeholder="0.00" step="0.01"></div>
+        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="text" inputmode="decimal" id="i_revenue" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
+        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="text" inputmode="decimal" id="i_profit" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
       </div>
     </div>
   </div>
@@ -1027,6 +1027,20 @@ const IMP_CHECKLIST=[
 // UTILS
 // ============================================
 function $(id){return document.getElementById(id);}
+
+// ── Monetary input helper ──
+// Accepts both "1234.56" and "1234,56" — normalises to dot, strips non-numeric chars
+function sanitizeMoney(el){
+  var v = el.value;
+  // Allow: digits, dot, comma, minus
+  v = v.replace(/[^0-9.,\-]/g, '');
+  // Replace comma with dot
+  v = v.replace(',', '.');
+  // Remove extra dots (keep only first)
+  var parts = v.split('.');
+  if(parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+  el.value = v;
+}
 function showLoading(t){$('loading-text').textContent=t||'Loading...';$('loading-overlay').classList.add('show');}
 function hideLoading(){$('loading-overlay').classList.remove('show');}
 function setSync(state,msg){
@@ -1053,7 +1067,7 @@ function parseDate(s){
   return isNaN(d)?null:d;
 }
 function uid(){return 'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
-function num(v){const n=parseFloat(v);return isNaN(n)?0:n;}
+function num(v){const n=parseFloat(String(v||'').replace(',','.'));return isNaN(n)?0:n;}
 function roundIATA(kg){
   // IATA: round up to nearest 0.5 kg
   return Math.ceil(kg*2)/2;
@@ -1518,19 +1532,21 @@ function rowToProcess(r){
   };
 }
 function processToRow(p) {
-  // Use existing key if process already has one (preserves the record for upsert/update).
-  // Only generate a new timestamp-based key for brand-new processes.
+  // Use stable key for existing processes so upsert updates instead of inserting
   let key;
   if (p.key && String(p.key).startsWith('afm_proc_')) {
     key = p.key;
   } else if (p.id && !String(p.id).startsWith('p_')) {
-    // id is a UUID from Supabase — derive a stable key from it
-    key = `afm_proc_${p.mode}_${p.id}`;
+    key = 'afm_proc_' + p.mode + '_' + p.id;
   } else {
-    // Brand-new local process: generate timestamp key
     const now = new Date();
-    const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-    key = `afm_proc_${p.mode}_${timestamp}`;
+    const ts = String(now.getFullYear()) +
+      String(now.getMonth()+1).padStart(2,'0') +
+      String(now.getDate()).padStart(2,'0') + '_' +
+      String(now.getHours()).padStart(2,'0') +
+      String(now.getMinutes()).padStart(2,'0') +
+      String(now.getSeconds()).padStart(2,'0');
+    key = 'afm_proc_' + p.mode + '_' + ts;
   }
 
   const pfx = p.mode === 'imp' ? 'i_' : 'e_';
@@ -1659,7 +1675,6 @@ async function saveProcessCloud(p){
     setSync('err', '✗ Save failed');
     saveLocal();
   } else {
-    // Propaga key e id retornados pelo Supabase de volta ao processo local
     if(data && data[0]){
       const saved = data[0];
       const idx = processes.findIndex(x => x.id === p.id);
@@ -1667,9 +1682,7 @@ async function saveProcessCloud(p){
         if(saved.id)  processes[idx].id  = saved.id;
         if(saved.key) processes[idx].key = saved.key;
       }
-      if(saved.id && currentEdit && currentEdit.id === p.id){
-        currentEdit.id = saved.id;
-      }
+      if(saved.id && currentEdit && currentEdit.id === p.id) currentEdit.id = saved.id;
     }
     setSync('ok','☁ Saved');
     showSaveToast();
@@ -2271,93 +2284,92 @@ function loadImport(p){
 }
 
 async function saveProcess(mode){
-  // Helper: safely read .value from a nullable element
-  function val(id){ const el=$(id); return el ? el.value.trim() : ''; }
-  function valNum(id){ const el=$(id); return el ? num(el.value) : 0; }
-  function radio(name){ const el=document.querySelector('input[name='+name+']:checked'); return el ? el.value : ''; }
+  // Safe field readers — return '' or 0 if element doesn't exist in this form
+  function val(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
+  function valNum(id){ var el=document.getElementById(id); if(!el) return 0; var v=String(el.value).replace(',','.'); return parseFloat(v)||0; }
+  function radio(name){ var el=document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : ''; }
 
-  const prefix = mode==='exp'?'e':'i';
-  const fileNumber = val(prefix+'_file_number');
-  const mawb       = val(prefix+'_mawb');
+  var prefix = mode==='exp' ? 'e' : 'i';
+  var isNew = !currentEdit.id;
+  var id = currentEdit.id || uid();
+  var existing = isNew ? null : processes.find(function(p){ return p.id===id; });
 
-  const isNew = !currentEdit.id;
-  const id = currentEdit.id || uid();
-  const existing = isNew ? null : processes.find(p=>p.id===id);
-
-  const p = {
-    id, mode,
-    status: val((mode==='exp'?'exp':'imp')+'-status-select') || 'NEW',
-    fileNumber, mawb,
-    hawb:              val(prefix+'_hawb'),
-    airline:           val(prefix+'_airline'),
-    origin:            val(prefix+'_origin').toUpperCase(),
-    dest:              val(prefix+'_dest').toUpperCase(),
-    agent:             val(prefix+'_agent'),
-    dg:                radio(prefix+'_dg') || 'non-dg',
-    dgType:            radio(prefix+'_dgsub') || 'pax',
-    dgDesc:            val(prefix+'_dg_desc'),
-    shipper:           val(prefix+'_shipper'),
-    shipperAddress:    val(prefix+'_shipper_address'),
-    consignee:         val(prefix+'_consignee'),
-    consigneeAddress:  val(prefix+'_consignee_address'),
-    legs:              collectLegs(prefix),
-    cassWeight:        val(prefix+'_cass_weight'),
-    chargeable:        val(prefix+'_chargeable'),
-    airfreightCost:    valNum(prefix+'_airfreight_cost'),
-    volumes:           collectVolumes(prefix),
-    trucker:           val(prefix+'_trucker'),
-    checklist:         collectChecklist(prefix),
-    comments:          val(prefix+'_comments'),
-    agentUpdate:       val(prefix+'_agent_update'),
-    revenue:           valNum(prefix+'_revenue'),
-    profit:            valNum(prefix+'_profit'),
-    createdAt:         existing?.createdAt || new Date().toISOString(),
-    updatedAt:         new Date().toISOString()
+  var p = {
+    id: id, mode: mode,
+    status:           val((mode==='exp'?'exp':'imp')+'-status-select') || 'NEW',
+    fileNumber:       val(prefix+'_file_number'),
+    mawb:             val(prefix+'_mawb'),
+    hawb:             val(prefix+'_hawb'),
+    airline:          val(prefix+'_airline'),
+    origin:           val(prefix+'_origin').toUpperCase(),
+    dest:             val(prefix+'_dest').toUpperCase(),
+    agent:            val(prefix+'_agent'),
+    dg:               radio(prefix+'_dg') || 'non-dg',
+    dgType:           radio(prefix+'_dgsub') || 'pax',
+    dgDesc:           val(prefix+'_dg_desc'),
+    shipper:          val(prefix+'_shipper'),
+    shipperAddress:   val(prefix+'_shipper_address'),
+    consignee:        val(prefix+'_consignee'),
+    consigneeAddress: val(prefix+'_consignee_address'),
+    legs:             collectLegs(prefix),
+    cassWeight:       val(prefix+'_cass_weight'),
+    chargeable:       val(prefix+'_chargeable'),
+    airfreightCost:   valNum(prefix+'_airfreight_cost'),
+    volumes:          collectVolumes(prefix),
+    trucker:          val(prefix+'_trucker'),
+    checklist:        collectChecklist(prefix),
+    comments:         val(prefix+'_comments'),
+    agentUpdate:      val(prefix+'_agent_update'),
+    revenue:          valNum(prefix+'_revenue'),
+    profit:           valNum(prefix+'_profit'),
+    createdAt:        existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt:        new Date().toISOString()
   };
 
-  if(mode==='exp'){
-    p.reference    = val('e_reference');
-    p.security     = radio('e_sec') || 'known';
-    p.lv           = radio('e_lv') || 'yes';
-    p.declaredValue= val('e_declared_value');
-    p.htsCode      = val('e_hts_code');
-    p.aesItn       = val('e_aes_itn');
-    p.cutoff       = val('e_cutoff');
-    p.departure    = val('e_departure');
-    const bsrc     = val('e_bsource_val');
-    p.bookingSource= bsrc==='Other' ? ('Other: '+val('e_bsource_other')) : (bsrc||'Airline Direct');
-    p.puFromMode   = $('e_pu_same_btn') && $('e_pu_same_btn').classList.contains('active') ? 'same' : 'other';
-    p.puFromAddress= val('e_pu_from_address');
-    p.puDate       = val('e_pu_date');
-    p.transferDate = val('e_transfer_date');
-    p.carrier      = val('e_carrier_val') || 'FA';
-    p.cfs          = val('e_cfs');
-    p.inlandCost   = valNum('e_inland_cost');
-    p.cfsCost      = valNum('e_cfs_cost');
+  if(mode === 'exp'){
+    p.reference     = val('e_reference');
+    p.security      = radio('e_sec') || 'known';
+    p.lv            = radio('e_lv') || 'yes';
+    p.declaredValue = val('e_declared_value');
+    p.htsCode       = val('e_hts_code');
+    p.aesItn        = val('e_aes_itn');
+    p.cutoff        = val('e_cutoff');
+    p.departure     = val('e_departure');
+    var bsrc        = val('e_bsource_val');
+    p.bookingSource = (bsrc === 'Other') ? ('Other: ' + val('e_bsource_other')) : (bsrc || 'Airline Direct');
+    var puSameBtn   = document.getElementById('e_pu_same_btn');
+    p.puFromMode    = (puSameBtn && puSameBtn.classList.contains('active')) ? 'same' : 'other';
+    p.puFromAddress = val('e_pu_from_address');
+    p.puDate        = val('e_pu_date');
+    p.transferDate  = val('e_transfer_date');
+    p.carrier       = val('e_carrier_val') || 'FA';
+    p.cfs           = val('e_cfs');
+    p.inlandCost    = valNum('e_inland_cost');
+    p.cfsCost       = valNum('e_cfs_cost');
   } else {
-    p.customsBroker= val('i_customs_broker');
-    p.reference    = val('i_reference');
-    p.incoterm     = val('i_incoterm');
-    p.ies          = radio('i_ies') || 'yes';
-    p.eta          = val('i_eta_id') || val('i_eta');
-    p.lastFreeDay  = val('i_last_free_day');
-    p.puDate       = val('i_pu_date');
-    p.puFrom       = val('i_pu_from');
-    p.transferDate = val('i_transfer_date');
-    p.cfs          = val('i_cfs');
-    p.inlandCost   = valNum('i_inland_cost');
-    p.feeCfs       = valNum('i_fee_cfs');
-    p.feeAirline   = valNum('i_fee_airline');
-    p.feeStorage   = valNum('i_fee_storage');
-    p.feeWaiting   = valNum('i_fee_waiting');
-    p.feeCustoms   = valNum('i_fee_customs');
-    p.feeOther     = valNum('i_fee_other');
+    p.customsBroker = val('i_customs_broker');
+    p.reference     = val('i_reference');
+    p.incoterm      = val('i_incoterm');
+    p.ies           = radio('i_ies') || 'yes';
+    p.eta           = val('i_eta_id') || val('i_eta');
+    p.lastFreeDay   = val('i_last_free_day');
+    p.puDate        = val('i_pu_date');
+    p.puFrom        = val('i_pu_from');
+    p.transferDate  = val('i_transfer_date');
+    p.cfs           = val('i_cfs');
+    p.inlandCost    = valNum('i_inland_cost');
+    p.feeCfs        = valNum('i_fee_cfs');
+    p.feeAirline    = valNum('i_fee_airline');
+    p.feeStorage    = valNum('i_fee_storage');
+    p.feeWaiting    = valNum('i_fee_waiting');
+    p.feeCustoms    = valNum('i_fee_customs');
+    p.feeOther      = valNum('i_fee_other');
   }
 
   if(isNew) processes.unshift(p);
-  else{
-    const idx = processes.findIndex(x=>x.id===id);
-    if(idx>=0) processes[idx] = p;
+  else {
+    var idx = processes.findIndex(function(x){ return x.id === id; });
+    if(idx >= 0) processes[idx] = p;
   }
   currentEdit.id = id;
   await saveProcessCloud(p);
@@ -2649,9 +2661,9 @@ function isOpenProcess(p){
 }
 
 function formatMoney(value){
-  const number = Number(value || 0);
-
-  return '$' + number.toFixed(2);
+  const number = parseFloat(String(value||'').replace(',','.')) || 0;
+  // Force dot as decimal separator regardless of browser locale
+  return '$' + number.toFixed(2).replace(',', '.');
 }
 
 function renderDashboard(){
@@ -2918,14 +2930,14 @@ $('imp-status-select').addEventListener('change',async function(){
 // ============================================
 function calcFeesTotal(){
   var total =
-    num(document.getElementById('i_fee_cfs')     ? document.getElementById('i_fee_cfs').value     : 0) +
-    num(document.getElementById('i_fee_airline') ? document.getElementById('i_fee_airline').value : 0) +
-    num(document.getElementById('i_fee_storage') ? document.getElementById('i_fee_storage').value : 0) +
-    num(document.getElementById('i_fee_waiting') ? document.getElementById('i_fee_waiting').value : 0) +
-    num(document.getElementById('i_fee_customs') ? document.getElementById('i_fee_customs').value : 0) +
-    num(document.getElementById('i_fee_other')   ? document.getElementById('i_fee_other').value   : 0);
+    (parseFloat(document.getElementById('i_fee_cfs')     ? document.getElementById('i_fee_cfs').value     : 0) || 0) +
+    (parseFloat(document.getElementById('i_fee_airline') ? document.getElementById('i_fee_airline').value : 0) || 0) +
+    (parseFloat(document.getElementById('i_fee_storage') ? document.getElementById('i_fee_storage').value : 0) || 0) +
+    (parseFloat(document.getElementById('i_fee_waiting') ? document.getElementById('i_fee_waiting').value : 0) || 0) +
+    (parseFloat(document.getElementById('i_fee_customs') ? document.getElementById('i_fee_customs').value : 0) || 0) +
+    (parseFloat(document.getElementById('i_fee_other')   ? document.getElementById('i_fee_other').value   : 0) || 0);
   var el = document.getElementById('i_fees_total');
-  if(el) el.textContent = '$ ' + total.toFixed(2);
+  if(el) el.textContent = '$ ' + total.toFixed(2).replace(',', '.');
 }
 
 // ============================================
@@ -2933,20 +2945,132 @@ function calcFeesTotal(){
 // ============================================
 function exportExcel(){
   if(!processes.length){alert('No data to export.');return;}
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  // Parse MM/DD/YYYY or ISO date → Date object or null
+  function parseAnyDate(s){
+    if(!s) return null;
+    if(s.includes('T') || (s.includes('-') && s.length>=10)){
+      const d=new Date(s); return isNaN(d)?null:d;
+    }
+    const p=s.split('/');
+    if(p.length>=3){ const d=new Date(+p[2],+p[0]-1,+p[1]); return isNaN(d)?null:d; }
+    return null;
+  }
+
+  // Get checklist item date/done by named key (e.g. 'nomination', 'dn_sent')
+  function chkByName(p, name){
+    const keys = p.mode==='imp' ? IMP_CHK_KEYS : EXP_CHK_KEYS;
+    const idx  = keys.indexOf(name);
+    if(idx < 0) return null;
+    const v = (p.checklist||{})['chk_'+idx];
+    if(!v) return null;
+    return { done: !!(v.done||v.checked), date: v.date||'' };
+  }
+
+  // Nomination date: date of 'nomination' checklist item
+  function getNomination(p){
+    const item = chkByName(p, 'nomination');
+    if(!item || !item.date) return '';
+    const d = parseAnyDate(item.date);
+    if(!d) return item.date;
+    return (d.getMonth()+1).toString().padStart(2,'0') + '/' +
+            d.getDate().toString().padStart(2,'0') + '/' + d.getFullYear();
+  }
+
+  // Billing: month name from 'dn_sent' checklist item date
+  function getBilling(p){
+    const item = chkByName(p, 'dn_sent');
+    if(!item || !item.date) return '';
+    const d = parseAnyDate(item.date);
+    if(!d) return '';
+    return MONTHS[d.getMonth()];
+  }
+
+  // Last checked item date (most recent date among done items)
+  function getLastUpdate(p){
+    const items = p.mode==='exp' ? EXP_CHECKLIST : IMP_CHECKLIST;
+    const chk   = p.checklist || {};
+    let latest  = null;
+    items.forEach((_,i)=>{
+      const v = chk['chk_'+i];
+      if(v && (v.done||v.checked) && v.date){
+        const d = parseAnyDate(v.date);
+        if(d && (!latest || d > latest)) latest = d;
+      }
+    });
+    if(!latest) return '';
+    return (latest.getMonth()+1).toString().padStart(2,'0') + '/' +
+            latest.getDate().toString().padStart(2,'0') + '/' + latest.getFullYear();
+  }
+
+  // Total pieces from volumes
+  function getTotalPieces(p){
+    const vols = p.volumes || [];
+    return vols.reduce((s,v)=>s+(parseInt(v.pcs)||0), 0) || '';
+  }
+
+  // Gross weight from volumes (sum of wkg)
+  function getGrossWeight(p){
+    const vols = p.volumes || [];
+    const total = vols.reduce((s,v)=>s+(parseFloat(v.wkg)||0), 0);
+    return total > 0 ? total : (p.cassWeight || '');
+  }
+
+  // Parse revenue/profit as plain number with dot decimal
+  function toNum(v){ return v ? (parseFloat(String(v).replace(',','.')) || '') : ''; }
+
+  const COLS = ['Nomination','Billing','Agent','Ops.','Shipment Type','Airline',
+                'HAWB','SCL File No','MAWB Number','Client','Pieces','Weight',
+                'Reference #','Notes','Update','Revenue','Profit'];
+
   const rows = processes.map(p=>({
-    Mode:p.mode==='exp'?'Export':'Import',
-    Status:p.status||'NEW','File Number':p.fileNumber||'',MAWB:p.mawb||'',HAWB:p.hawb||'',
-    Airline:p.airline||'',Origin:p.origin||'',Destination:p.dest||'',Agent:p.agent||'',
-    Shipper:p.shipper||'',Consignee:p.consignee||'',
-    'Departure/ETA':(p.mode==='exp'?p.departure:p.eta)||'',
-    'Chargeable (kg)':p.chargeable||'','Air Freight ($)':p.airfreightCost||0,
-    Revenue:p.revenue||0,Profit:p.profit||0,
-    'Days Open':daysOpen(p)??'-','Next Task':nextTask(p).name
+    'Nomination':    getNomination(p),
+    'Billing':       getBilling(p),
+    'Agent':         p.agent || '',
+    'Ops.':          'Daiane',
+    'Shipment Type': p.mode==='exp' ? 'Air Export' : 'Air Import',
+    'Airline':       p.airline || '',
+    'HAWB':          p.hawb || '',
+    'SCL File No':   p.fileNumber || '',
+    'MAWB Number':   p.mawb || '',
+    'Client':        p.mode==='exp' ? (p.shipper||'') : (p.consignee||''),
+    'Pieces':        getTotalPieces(p),
+    'Weight':        getGrossWeight(p),
+    'Reference #':   p.reference || '',
+    'Notes':         p.agentUpdate || '',
+    'Update':        getLastUpdate(p),
+    'Revenue':       toNum(p.revenue),
+    'Profit':        toNum(p.profit)
   }));
+
   const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  const colWidths = [12,10,12,10,14,10,14,14,16,28,8,10,22,40,12,12,12];
+  ws['!cols'] = colWidths.map(w=>({wch:w}));
+
+  // ── Highlight empty cells with light yellow fill ──
+  const FILL_YELLOW = { patternType:'solid', fgColor:{ rgb:'FFFDE7' } };
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let R = range.s.r + 1; R <= range.e.r; R++){   // skip header row
+    for(let C = range.s.c; C <= range.e.c; C++){
+      const addr = XLSX.utils.encode_cell({r:R, c:C});
+      const cell = ws[addr];
+      const isEmpty = !cell || cell.v === '' || cell.v === null || cell.v === undefined;
+      if(isEmpty){
+        if(!ws[addr]) ws[addr] = {t:'s', v:''};
+        ws[addr].s = { fill: FILL_YELLOW };
+      }
+    }
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Processes');
-  XLSX.writeFile(wb,'air_freight_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  // write with cellStyles enabled
+  XLSX.writeFile(wb,'air_freight_'+new Date().toISOString().slice(0,10)+'.xlsx', {cellStyles:true});
 }
 
 function exportPDF(mode){
