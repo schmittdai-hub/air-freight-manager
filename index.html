@@ -1126,18 +1126,19 @@ function normalizeVolumes(vols){
 }
 
 
-// Normaliza checklist do banco {key:{checked,date}} garantindo formato consistente
+// Normaliza checklist para o formato {chk_N:{done,date}} que o app usa
 function normalizeChecklist(raw, mode){
   if(!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out = {};
   Object.keys(raw).forEach(k => {
     const v = raw[k];
     if(v && typeof v === 'object'){
-      out[k] = {checked: !!(v.checked || v.done), date: v.date || ''};
+      // aceita {done, date} e {checked, date}
+      out[k] = {done: !!(v.done || v.checked), date: v.date || ''};
     } else if(typeof v === 'boolean'){
-      out[k] = {checked: v, date: ''};
+      out[k] = {done: v, date: ''};
     } else {
-      out[k] = {checked: false, date: ''};
+      out[k] = {done: false, date: ''};
     }
   });
   return out;
@@ -1225,7 +1226,7 @@ function processToRow(p){
     consignee:p.consignee, consignee_address:p.consigneeAddress,
     legs:p.legs||[], cutoff:p.cutoff, departure:p.departure, etd:p.etd, eta:p.eta,
     cass_weight:p.cassWeight, chargeable:p.chargeable, booking_source:p.bookingSource,
-    airfreight_cost:p.airfreightCost, vols:p.volumes||[],
+    airfreight_cost:p.airfreightCost, volumes:p.volumes||[],
     pu_from_mode:p.puFromMode, pu_from_address:p.puFromAddress,
     pu_date:p.puDate, transfer_date:p.transferDate, trucker:p.trucker,
     carrier:p.carrier, cfs:p.cfs, inland_cost:p.inlandCost, cfs_cost:p.cfsCost,
@@ -1647,6 +1648,18 @@ function recalcTotals(prefix){
   }
 }
 
+function collectChecklist(prefix){
+  const items = prefix==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const out = {};
+  items.forEach((_,i)=>{
+    const key = 'chk_'+i;
+    const cb = document.getElementById(prefix+'_chk_'+key);
+    const dt = document.getElementById(prefix+'_dt_'+key);
+    out[key] = {done: cb ? cb.checked : false, date: dt ? dt.value : ''};
+  });
+  return out;
+}
+
 // ============================================
 // CHECKLIST
 // ============================================
@@ -1658,14 +1671,15 @@ function buildChecklist(p, _unused, state){
   const chkState = state || {};
   const container=document.getElementById(p+'_checklist');
   container.innerHTML='';
-  items.forEach(item=>{
+  items.forEach((item,i)=>{
     const div=document.createElement('div');
-    div.className='check-item';div.id=p+'_ci_'+item.key;
-    const s = chkState[item.key];
-    const isChecked = s && !!s.checked;
+    const key='chk_'+i;
+    div.className='check-item';div.id=p+'_ci_'+key;
+    const s = chkState[key];
+    const isChecked = s && !!(s.done || s.checked);
     const dateVal = s && s.date ? s.date : '';
     if(isChecked) div.classList.add('done');
-    div.innerHTML=`<input type="checkbox" id="${p}_chk_${item.key}" onchange="onCheck('${p}','${item.key}',this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${item.key}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
+    div.innerHTML=`<input type="checkbox" id="${p}_chk_${key}" onchange="onCheck('${p}','${key}',this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${key}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
     container.appendChild(div);
   });
   initDatePickers();
@@ -1679,7 +1693,7 @@ function onCheck(p,key,el){
 }
 function updateProgress(p){
   const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const done=items.filter(i=>document.getElementById(p+'_chk_'+i.key)?.checked).length;
+  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
   const total=items.length,pct=Math.round((done/total)*100);
   document.getElementById(p+'_prog_fill').style.width=pct+'%';
   document.getElementById(p+'_prog_text').textContent=done+' of '+total+' steps completed';
@@ -1688,7 +1702,7 @@ function updateProgress(p){
 }
 function updateBadge(p){
   const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const done=items.filter(i=>document.getElementById(p+'_chk_'+i.key)?.checked).length;
+  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
   const sel=document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
   if(done>0&&sel.value==='NEW')sel.value='IN PROCESS';
 }
@@ -1880,7 +1894,6 @@ async function saveProcess(mode){
     trucker: $(prefix+'_trucker').value.trim(),
     checklist: collectChecklist(prefix),
     comments: $(prefix+'_comments').value.trim(),
-    agentUpdate: $(prefix+'_agent_update').value.trim(),
     revenue: num($(prefix+'_revenue').value),
     profit: num($(prefix+'_profit').value),
     createdAt: existing?.createdAt || new Date().toISOString(),
@@ -1906,23 +1919,23 @@ async function saveProcess(mode){
     p.cfsCost = num($('e_cfs_cost').value);
   }else{
     p.customsBroker = $('i_customs_broker').value.trim();
-    p.incoterm = $('i_incoterm').value;
-    p.ies = document.querySelector('input[name=i_ies]:checked').value;
-    p.etd = $('i_etd').value.trim();
-    p.eta = $('i_eta').value.trim();
-    p.entryNumber = $('i_entry_number').value.trim();
-    p.entryDate = $('i_entry_date').value.trim();
-    p.releaseDate = $('i_release_date').value.trim();
-    p.feeDuty = num($('i_fee_duty').value);
-    p.feeMpf = num($('i_fee_mpf').value);
-    p.feeHmf = num($('i_fee_hmf').value);
-    p.feeBroker = num($('i_fee_broker').value);
-    p.feeIsf = num($('i_fee_isf').value);
-    p.feeOther = num($('i_fee_other').value);
-    p.deliveryDate = $('i_delivery_date').value.trim();
-    p.deliveryAddress = $('i_delivery_address').value.trim();
-    p.pod = $('i_pod').value.trim();
-    p.deliveryCost = num($('i_delivery_cost').value);
+    p.reference    = $('i_reference').value.trim();
+    p.incoterm     = $('i_incoterm').value;
+    p.ies          = document.querySelector('input[name=i_ies]:checked').value;
+    p.eta          = ($('i_eta_id')||$('i_eta')||{value:''}).value.trim();
+    p.lastFreeDay  = $('i_last_free_day') ? $('i_last_free_day').value.trim() : '';
+    p.puDate       = $('i_pu_date') ? $('i_pu_date').value.trim() : '';
+    p.puFrom       = $('i_pu_from') ? $('i_pu_from').value.trim() : '';
+    p.transferDate = $('i_transfer_date') ? $('i_transfer_date').value.trim() : '';
+    p.trucker      = $('i_trucker') ? $('i_trucker').value.trim() : '';
+    p.cfs          = $('i_cfs') ? $('i_cfs').value.trim() : '';
+    p.inlandCost   = $('i_inland_cost') ? num($('i_inland_cost').value) : 0;
+    p.feeCfs       = $('i_fee_cfs')     ? num($('i_fee_cfs').value)     : 0;
+    p.feeAirline   = $('i_fee_airline') ? num($('i_fee_airline').value) : 0;
+    p.feeStorage   = $('i_fee_storage') ? num($('i_fee_storage').value) : 0;
+    p.feeWaiting   = $('i_fee_waiting') ? num($('i_fee_waiting').value) : 0;
+    p.feeCustoms   = $('i_fee_customs') ? num($('i_fee_customs').value) : 0;
+    p.feeOther     = $('i_fee_other')   ? num($('i_fee_other').value)   : 0;
   }
 
   if(isNew) processes.unshift(p);
@@ -1987,8 +2000,8 @@ function nextTask(p){
   const items = p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
   const chk = p.checklist||{};
   for(let i=0;i<items.length;i++){
-    const v = chk[items[i].key];
-    if(!v || !v.checked){
+    const v = chk['chk_'+i];
+    if(!v || !(v.done||v.checked)){
       return {name:items[i].label, index:i, done:false};
     }
   }
@@ -2045,7 +2058,7 @@ function renderTable(){
     const totalItems = chkList.length;
     let done = 0;
     const chk = p.checklist || {};
-    chkList.forEach(item => { if(chk[item.key]?.checked) done++; });
+    chkList.forEach((_,i) => { const v=chk['chk_'+i]; if(v&&(v.done||v.checked)) done++; });
     const pct = Math.round((done/totalItems)*100);
     const statusPill = statusPillHtml(p.status||'NEW');
     return `
