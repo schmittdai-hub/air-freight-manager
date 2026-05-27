@@ -1262,78 +1262,85 @@ function rowToProcess(r){
     updatedAt:     r.saved_at      || r.updated_at  || src.updatedAt || '',
   };
 }
-function processToRow(p){
-  // Save to actual DB structure: id/key, mode, status, data(JSONB), created_at, saved_at
-  const pfx = p.mode === 'imp' ? 'i_' : 'e_';
+function processToRow(p) {
+  // Generate timestamp in YYYYMMDD_HHmmss format
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
   
+  // Create key in required format: afm_proc_{mode}_{timestamp}
+  const key = `afm_proc_${p.mode}_${timestamp}`;
+
+  const pfx = p.mode === 'imp' ? 'i_' : 'e_';
+
   // Build data object with prefixed keys (matching original DB format)
   const data = {};
-  data[pfx+'file_number']   = p.fileNumber    || '';
-  data[pfx+'mawb']          = p.mawb          || '';
-  data[pfx+'hawb']          = p.hawb          || '';
-  data[pfx+'airline']       = p.airline       || '';
-  data[pfx+'origin']        = p.origin        || '';
-  data[pfx+'dest']          = p.dest          || '';
-  data[pfx+'agent']         = p.agent         || '';
-  data[pfx+'reference']     = p.reference     || '';
-  data[pfx+'dg']            = p.dg            || 'non-dg';
-  data[pfx+'dg_desc']       = p.dgDesc        || '';
-  data[pfx+'shipper']       = p.shipper       || '';
-  data[pfx+'shipper_address']= p.shipperAddress|| '';
-  data[pfx+'consignee']     = p.consignee     || '';
-  data[pfx+'consignee_address']= p.consigneeAddress||'';
-  data['legs']              = p.legs          || [];
-  data[pfx+'cass_weight']   = p.cassWeight    || '';
-  data[pfx+'chargeable']    = p.chargeable    || '';
-  data[pfx+'airfreight_cost']= p.airfreightCost||'';
-  data['vols']              = p.volumes       || [];
-  data['checklist']         = p.checklist     || {};
-  data[pfx+'comments']      = p.comments      || '';
-  data[pfx+'revenue']       = p.revenue       || '';
-  data[pfx+'profit']        = p.profit        || '';
-  
-  if(p.mode === 'exp'){
-    data['e_lv']            = p.lv            || 'yes';
-    data['e_security']      = p.security      || 'known';
-    data['e_declared_value']= p.declaredValue || '';
-    data['e_hts_code']      = p.htsCode       || '';
-    data['e_aes_itn']       = p.aesItn        || '';
-    data['e_cutoff']        = p.cutoff        || '';
-    data['e_departure']     = p.departure     || '';
-    data['e_booking_source']= p.bookingSource || 'Airline Direct';
-    data['e_pu_from_mode']  = p.puFromMode    || 'same';
-    data['e_pu_from_address']= p.puFromAddress||'';
-    data['e_pu_date']       = p.puDate        || '';
-    data['e_transfer_date'] = p.transferDate  || '';
-    data['e_trucker']       = p.trucker       || '';
-    data['e_carrier']       = p.carrier       || 'FA';
-    data['e_cfs']           = p.cfs           || '';
-    data['e_inland_cost']   = p.inlandCost    || '';
-    data['e_cfs_cost']      = p.cfsCost       || '';
+  data[pfx + 'file_number'] = p.fileNumber || '';
+  data[pfx + 'mawb'] = p.mawb || '';
+  data[pfx + 'hawb'] = p.hawb || '';
+  data[pfx + 'airline'] = p.airline || '';
+  data[pfx + 'origin'] = p.origin || '';
+  data[pfx + 'dest'] = p.dest || '';
+  data[pfx + 'agent'] = p.agent || '';
+  data[pfx + 'reference'] = p.reference || '';
+  data[pfx + 'dg'] = p.dg || 'non-dg';
+  data[pfx + 'dg_desc'] = p.dgDesc || '';
+  data[pfx + 'shipper'] = p.shipper || '';
+  data[pfx + 'shipper_address'] = p.shipperAddress || '';
+  data[pfx + 'consignee'] = p.consignee || '';
+  data[pfx + 'consignee_address'] = p.consigneeAddress || '';
+  data['legs'] = p.legs || [];
+  data[pfx + 'cass_weight'] = p.cassWeight || '';
+  data[pfx + 'chargeable'] = p.chargeable || '';
+  data[pfx + 'airfreight_cost'] = p.airfreightCost || '';
+  data['vols'] = p.volumes || [];
+  data['checklist'] = p.checklist || {};
+  data[pfx + 'comments'] = p.comments || '';
+  data[pfx + 'revenue'] = p.revenue || '';
+  data[pfx + 'profit'] = p.profit || '';
+
+  if (p.mode === 'exp') {
+    data['e_lv'] = p.lv || 'yes';
+    data['e_security'] = p.security || 'known';
+    data['e_declared_value'] = p.declaredValue || '';
+    data['e_hts_code'] = p.htsCode || '';
+    data['e_aes_itn'] = p.aesItn || '';
+    data['e_cutoff'] = p.cutoff || '';
+    data['e_departure'] = p.departure || '';
+    data['e_booking_source'] = p.bookingSource || 'Airline Direct';
+    data['e_pu_from_mode'] = p.puFromMode || 'same';
+    data['e_pu_from_address'] = p.puFromAddress || '';
+    data['e_pu_date'] = p.puDate || '';
+    data['e_transfer_date'] = p.transferDate || '';
+    data['e_trucker'] = p.trucker || '';
+    data['e_carrier'] = p.carrier || 'FA';
+    data['e_cfs'] = p.cfs || '';
+    data['e_inland_cost'] = p.inlandCost || '';
+    data['e_cfs_cost'] = p.cfsCost || '';
   } else {
-    data['i_incoterm']      = p.incoterm      || '';
-    data['i_ies']           = p.ies           || 'yes';
-    data['i_eta']           = p.eta           || '';
-    data['i_customs_broker']= p.customsBroker || '';
-    data['i_pu_date']       = p.puDate        || '';
-    data['i_transfer_date'] = p.transferDate  || '';
-    data['i_trucker']       = p.trucker       || '';
-    data['i_cfs']           = p.cfs           || '';
-    data['i_inland_cost']   = p.inlandCost    || '';
-    data['i_fee_cfs']       = p.feeCfs        || '';
-    data['i_fee_airline']   = p.feeAirline    || '';
-    data['i_fee_storage']   = p.feeStorage    || '';
-    data['i_fee_waiting']   = p.feeWaiting    || '';
-    data['i_fee_customs']   = p.feeCustoms    || '';
-    data['i_fee_other']     = p.feeOther      || '';
+    data['i_incoterm'] = p.incoterm || '';
+    data['i_ies'] = p.ies || 'yes';
+    data['i_eta'] = p.eta || '';
+    data['i_customs_broker'] = p.customsBroker || '';
+    data['i_pu_date'] = p.puDate || '';
+    data['i_transfer_date'] = p.transferDate || '';
+    data['i_trucker'] = p.trucker || '';
+    data['i_cfs'] = p.cfs || '';
+    data['i_inland_cost'] = p.inlandCost || '';
+    data['i_fee_cfs'] = p.feeCfs || '';
+    data['i_fee_airline'] = p.feeAirline || '';
+    data['i_fee_storage'] = p.feeStorage || '';
+    data['i_fee_waiting'] = p.feeWaiting || '';
+    data['i_fee_customs'] = p.feeCustoms || '';
+    data['i_fee_other'] = p.feeOther || '';
   }
 
   return {
-    id:         p.id,
-    mode:       p.mode,
-    status:     p.status || 'NEW',
-    data:       data,
-    saved_at:   new Date().toISOString(),
+    key: key, // Required field added here
+    id: p.id,
+    mode: p.mode,
+    status: p.status || 'NEW',
+    data: data,
+    saved_at: new Date().toISOString(),
     latest_update_to_agent: p.agentUpdate || ''
   };
 }
