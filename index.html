@@ -299,7 +299,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 <nav class="app-nav">
   <div class="nav-brand">Air Freight <span>Manager</span></div>
   <div class="nav-tabs">
-    <button class="nav-tab dash" id="tab-dash" onclick="showScreen('dash')">📊 Dashboard</button>
+  <button class="nav-tab dash" id="tab-dash" onclick="showScreen('dash'); renderDashboard();">
+  📊 Dashboard
+</button>
     <button class="nav-tab active" id="tab-list" onclick="showScreen('list')">All Processes</button>
     <button class="nav-tab" id="tab-exp-new" onclick="newProcess('exp')">+ New Export</button>
     <button class="nav-tab imp" id="tab-imp-new" onclick="newProcess('imp')">+ New Import</button>
@@ -731,9 +733,17 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
           <input type="text" id="i_agent" placeholder="" autocomplete="off" oninput="acFilter('i_agent','agent')">
           <div class="ac-list" id="ac_i_agent" style="display:none"></div>
         </div>
-        <div class="field ac-wrap"><label>Customs Broker</label>
-          <input type="text" id="i_customs_broker" placeholder="" autocomplete="off" oninput="acFilter('i_customs_broker','broker')">
-          <div class="ac-list" id="ac_i_customs_broker" style="display:none"></div>
+<div class="field ac-wrap">
+  <label>Customs Broker</label>
+  <input
+    type="text"
+    id="i_customs_broker"
+    placeholder=""
+    autocomplete="off"
+    oninput="acFilter('i_customs_broker','broker')"
+  >
+  <div class="ac-list" id="ac_i_customs_broker" style="display:none"></div>
+</div>
         </div>
       </div>
       <div class="fields-grid cols-3" style="margin-bottom:10px">
@@ -1021,15 +1031,42 @@ async function initSupabase(){
 }
 
 async function loadFromCloud(){
-  const {data:procs, error:e1} = await supa.from('processes').select('*').order('updated_at',{ascending:false});
-  if(e1)throw e1;
-  processes = (procs||[]).map(rowToProcess);
-  const {data:comps, error:e2} = await supa.from('companies').select('*').order('name');
-  if(e2)throw e2;
-  companies = (comps||[]).map(c=>({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes}));
+  const {data:procs, error:e1} = await supa
+    .from('processes')
+    .select('*')
+    .order('updated_at',{ascending:false});
+
+  if(e1) throw e1;
+
+  processes = (procs || []).map(rowToProcess);
+
+  // Opcional, mas ajuda se alguma função estiver usando window.processes
+  window.processes = processes;
+
+  const {data:comps, error:e2} = await supa
+    .from('companies')
+    .select('*')
+    .order('name');
+
+  if(e2) throw e2;
+
+  companies = (comps || []).map(c => ({
+    id:c.id,
+    name:c.name,
+    type:c.type,
+    contact:c.contact,
+    phone:c.phone,
+    notes:c.notes
+  }));
+
   renderTable();
   renderCompanyList();
+
+  if(typeof renderDashboard === 'function'){
+    renderDashboard();
+  }
 }
+
 
 function rowToProcess(r){
   // 🔧 Compat layer: se vier no formato antigo (JSONB "data" com prefixos i_/e_),
@@ -1125,11 +1162,26 @@ function processToRow(p){
 }
 
 async function saveProcessCloud(p){
-  if(!cloudReady){saveLocal();return;}
+  if(!cloudReady){
+    saveLocal();
+
+    if(typeof renderDashboard === 'function'){
+      renderDashboard();
+    }
+
+    return;
+  }
+
   const row = processToRow(p);
-  if(!row.created_at)row.created_at = p.createdAt || new Date().toISOString();
+
+  if(!row.created_at){
+    row.created_at = p.createdAt || new Date().toISOString();
+  }
+
   setSync('saving','⏳ Saving…');
+
   const {error} = await supa.from('processes').upsert(row);
+
   if(error){
     console.error('Save error:',error);
     setSync('err','✗ Save failed');
@@ -1137,7 +1189,13 @@ async function saveProcessCloud(p){
   }else{
     setSync('ok','☁ Saved');
     showSaveToast();
+
+    if(typeof renderDashboard === 'function'){
+      renderDashboard();
+    }
   }
+}
+
 }
 
 async function deleteProcessCloud(id){
@@ -1933,27 +1991,331 @@ function clearFilters(){
 // ============================================
 // DASHBOARD
 // ============================================
-function renderDashboard(){
-  const total = processes.length;
-  const exp = processes.filter(p=>p.mode==='exp').length;
-  const imp = processes.filter(p=>p.mode==='imp').length;
-  const active = processes.filter(p=>['NEW','IN PROCESS','MISC/TRUCKING','QUOTE'].includes(p.status||'NEW')).length;
-  const quote = processes.filter(p=>p.status==='QUOTE').length;
-  const misc = processes.filter(p=>p.status==='MISC/TRUCKING').length;
-  const closed = processes.filter(p=>p.status==='CLOSED').length;
-  const onhold = processes.filter(p=>p.status==='ON HOLD').length;
+function parseDateSafe(value){
+  if(!value) return null;
 
-  $('dash-updated').textContent = 'Updated '+fmtDate(new Date());
-  $('dash-kpis').innerHTML = `
-    <div class="dash-card no-click"><div class="dash-card-label">Total Processes</div><div class="dash-card-value">${total}</div></div>
-    <div class="dash-card" onclick="filterAndGo('','')"><div class="dash-card-label">Active</div><div class="dash-card-value warn">${active}</div><div class="dash-card-sub">in progress</div></div>
-    <div class="dash-card" onclick="filterAndGo('exp','')"><div class="dash-card-label">Exports</div><div class="dash-card-value accent">${exp}</div></div>
-    <div class="dash-card" onclick="filterAndGo('imp','')"><div class="dash-card-label">Imports</div><div class="dash-card-value imp">${imp}</div></div>
-    <div class="dash-card" onclick="filterAndGo('','QUOTE')"><div class="dash-card-label">Quotes</div><div class="dash-card-value quote">${quote}</div></div>
-    <div class="dash-card" onclick="filterAndGo('','MISC/TRUCKING')"><div class="dash-card-label">Misc/Trucking</div><div class="dash-card-value misc">${misc}</div></div>
-    <div class="dash-card" onclick="filterAndGo('','CLOSED')"><div class="dash-card-label">Closed</div><div class="dash-card-value green">${closed}</div></div>
-    <div class="dash-card" onclick="filterAndGo('','ON HOLD')"><div class="dash-card-label">On Hold</div><div class="dash-card-value warn">${onhold}</div></div>
-  `;
+  if(value instanceof Date && !isNaN(value)){
+    return value;
+  }
+
+  const isoDate = new Date(value);
+
+  if(!isNaN(isoDate)){
+    return isoDate;
+  }
+
+  if(typeof value === 'string'){
+    const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+
+    if(match){
+      const month = Number(match[1]) - 1;
+      const day = Number(match[2]);
+      const year = Number(match[3]);
+
+      const date = new Date(year, month, day);
+
+      if(!isNaN(date)){
+        return date;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getDaysOpen(p){
+  const status = String(p.status || '').toUpperCase();
+
+  if(status === 'CLOSED' || status === 'CANCELLED'){
+    return 0;
+  }
+
+  const baseDate = parseDateSafe(p.createdAt || p.updatedAt);
+
+  if(!baseDate){
+    return 0;
+  }
+
+  const now = new Date();
+  const diff = now.getTime() - baseDate.getTime();
+
+  return Math.max(0, Math.floor(diff / 86400000));
+}
+
+function getChecklistProgress(p){
+  const checklist = p.checklist || {};
+
+  if(Array.isArray(checklist)){
+    if(checklist.length === 0) return 0;
+
+    const done = checklist.filter(item => {
+      if(typeof item === 'boolean') return item;
+      return item.done || item.checked || item.completed;
+    }).length;
+
+    return Math.round((done / checklist.length) * 100);
+  }
+
+  if(typeof checklist === 'object'){
+    const keys = Object.keys(checklist);
+
+    if(keys.length === 0) return 0;
+
+    const done = keys.filter(key => {
+      const item = checklist[key];
+
+      if(typeof item === 'boolean') return item;
+
+      if(item && typeof item === 'object'){
+        return item.done || item.checked || item.completed || item.value === true;
+      }
+
+      return false;
+    }).length;
+
+    return Math.round((done / keys.length) * 100);
+  }
+
+  return 0;
+}
+
+function getNextTask(p){
+  const checklist = p.checklist || {};
+
+  if(Array.isArray(checklist)){
+    const pending = checklist.find(item => {
+      if(typeof item === 'boolean') return !item;
+      return !(item.done || item.checked || item.completed);
+    });
+
+    if(pending){
+      return pending.name || pending.label || pending.title || 'Pending checklist item';
+    }
+  }
+
+  if(typeof checklist === 'object'){
+    for(const key of Object.keys(checklist)){
+      const item = checklist[key];
+
+      if(typeof item === 'boolean' && !item){
+        return key;
+      }
+
+      if(item && typeof item === 'object'){
+        const isDone = item.done || item.checked || item.completed || item.value === true;
+
+        if(!isDone){
+          return item.name || item.label || item.title || key;
+        }
+      }
+    }
+  }
+
+  return '';
+}
+
+function isOpenProcess(p){
+  const status = String(p.status || '').toUpperCase();
+
+  return status !== 'CLOSED' && status !== 'CANCELLED';
+}
+
+function formatMoney(value){
+  const number = Number(value || 0);
+
+  return '$' + number.toFixed(2);
+}
+
+function renderDashboard(){
+  const data = Array.isArray(processes) ? processes : [];
+
+  const dashKpis = document.getElementById('dash-kpis');
+  const dashAlerts = document.getElementById('dash-alerts');
+  const dashRecent = document.getElementById('dash-recent');
+  const dashRevenue = document.getElementById('dash-revenue');
+  const dashUpdated = document.getElementById('dash-updated');
+
+  if(!dashAlerts){
+    console.warn('Elemento #dash-alerts não encontrado.');
+    return;
+  }
+
+  const openProcesses = data.filter(isOpenProcess);
+  const exportsCount = data.filter(p => p.mode === 'exp').length;
+  const importsCount = data.filter(p => p.mode === 'imp').length;
+  const closedCount = data.filter(p => String(p.status || '').toUpperCase() === 'CLOSED').length;
+  const onHoldCount = data.filter(p => String(p.status || '').toUpperCase() === 'ON HOLD').length;
+
+  if(dashUpdated){
+    dashUpdated.textContent = `Updated ${new Date().toLocaleString('en-US')}`;
+  }
+
+  if(dashKpis){
+    dashKpis.innerHTML = `
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Total Processes</div>
+        <div class="dash-card-value">${data.length}</div>
+        <div class="dash-card-sub">All records</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Open</div>
+        <div class="dash-card-value warn">${openProcesses.length}</div>
+        <div class="dash-card-sub">Active files</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Exports</div>
+        <div class="dash-card-value accent">${exportsCount}</div>
+        <div class="dash-card-sub">Export files</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Imports</div>
+        <div class="dash-card-value imp">${importsCount}</div>
+        <div class="dash-card-sub">Import files</div>
+      </div>
+    `;
+  }
+
+  const alerts = [];
+
+  openProcesses.forEach(p => {
+    const fileNumber = p.fileNumber || 'No file number';
+    const status = String(p.status || 'NEW').toUpperCase();
+    const daysOpen = getDaysOpen(p);
+    const progress = getChecklistProgress(p);
+    const nextTask = getNextTask(p);
+
+    if(daysOpen >= 14){
+      alerts.push({
+        type: 'danger',
+        icon: '🔥',
+        text: `${fileNumber} has been open for ${daysOpen} days.`
+      });
+    }else if(daysOpen >= 7){
+      alerts.push({
+        type: 'warn',
+        icon: '⏳',
+        text: `${fileNumber} has been open for ${daysOpen} days.`
+      });
+    }
+
+    if(!p.mawb){
+      alerts.push({
+        type: 'warn',
+        icon: '✈️',
+        text: `${fileNumber} is missing MAWB.`
+      });
+    }
+
+    if(!p.origin || !p.dest){
+      alerts.push({
+        type: 'warn',
+        icon: '🛫',
+        text: `${fileNumber} is missing origin or destination.`
+      });
+    }
+
+    if(status === 'ON HOLD'){
+      alerts.push({
+        type: 'info',
+        icon: '⏸️',
+        text: `${fileNumber} is currently ON HOLD.`
+      });
+    }
+
+    if(status === 'IN PROCESS' && progress === 0){
+      alerts.push({
+        type: 'warn',
+        icon: '📋',
+        text: `${fileNumber} is in process but checklist progress is 0%.`
+      });
+    }
+
+    if(!nextTask && progress < 100){
+      alerts.push({
+        type: 'info',
+        icon: '🔎',
+        text: `${fileNumber} has no next task defined.`
+      });
+    }
+  });
+
+  if(alerts.length === 0){
+    dashAlerts.innerHTML = `
+      <div class="no-alerts">
+        No active alerts.
+      </div>
+    `;
+  }else{
+    dashAlerts.innerHTML = alerts.slice(0, 15).map(alert => `
+      <div class="alert-item ${alert.type}">
+        <span class="alert-icon">${alert.icon}</span>
+        <span>${alert.text}</span>
+      </div>
+    `).join('');
+  }
+
+  if(dashRecent){
+    const recent = [...data]
+      .sort((a,b) => {
+        const dateA = parseDateSafe(a.updatedAt || a.createdAt) || new Date(0);
+        const dateB = parseDateSafe(b.updatedAt || b.createdAt) || new Date(0);
+
+        return dateB - dateA;
+      })
+      .slice(0, 8);
+
+    dashRecent.innerHTML = recent.map(p => {
+      const mode = p.mode === 'imp' ? 'IMP' : 'EXP';
+      const fileNumber = p.fileNumber || '—';
+      const route = p.origin && p.dest ? `${p.origin} → ${p.dest}` : '—';
+      const status = p.status || 'NEW';
+      const daysOpen = getDaysOpen(p);
+
+      return `
+        <tr onclick="openProcessById && openProcessById('${p.id}')">
+          <td>${mode}</td>
+          <td class="mono">${fileNumber}</td>
+          <td>${route}</td>
+          <td>${status}</td>
+          <td>${daysOpen}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  if(dashRevenue){
+    const totalRevenue = data.reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const totalProfit = data.reduce((sum,p) => sum + Number(p.profit || 0), 0);
+
+    dashRevenue.innerHTML = `
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Revenue</div>
+        <div class="dash-card-value green">${formatMoney(totalRevenue)}</div>
+        <div class="dash-card-sub">Total revenue</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Profit</div>
+        <div class="dash-card-value green">${formatMoney(totalProfit)}</div>
+        <div class="dash-card-sub">Total profit</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Closed</div>
+        <div class="dash-card-value">${closedCount}</div>
+        <div class="dash-card-sub">Closed files</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">On Hold</div>
+        <div class="dash-card-value warn">${onHoldCount}</div>
+        <div class="dash-card-sub">Paused files</div>
+      </div>
+    `;
+  }
   // Totalizadores financeiros
   const totalRev = processes.reduce((s,p)=>s+(Number(p.revenue)||0),0);
   const totalProfit = processes.reduce((s,p)=>s+(Number(p.profit)||0),0);
@@ -2106,6 +2468,455 @@ window.addEventListener('DOMContentLoaded',async()=>{
   await initSupabase();
   initPickers();
   bindAutoResize();
+});
+</script>
+  <script>
+function getProcessValue(process, keys, fallback = '') {
+  for (const key of keys) {
+    if (process && process[key] !== undefined && process[key] !== null && process[key] !== '') {
+      return process[key];
+    }
+  }
+
+  return fallback;
+}
+
+function getAllProcessesForDashboard() {
+  if (Array.isArray(window.processes)) {
+    return window.processes;
+  }
+
+  const possibleKeys = [
+    'processes',
+    'airfreight_processes',
+    'air_freight_processes',
+    'afm_processes'
+  ];
+
+  for (const key of possibleKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+
+      if (raw) {
+        const parsed = JSON.parse(raw);
+
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.warn('Could not parse localStorage key:', key, error);
+    }
+  }
+
+  return [];
+}
+
+function parseDashboardDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date && !isNaN(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    const mdyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+
+    if (mdyMatch) {
+      const month = Number(mdyMatch[1]) - 1;
+      const day = Number(mdyMatch[2]);
+      const year = Number(mdyMatch[3]);
+
+      const date = new Date(year, month, day);
+
+      if (!isNaN(date)) {
+        return date;
+      }
+    }
+
+    const isoDate = new Date(trimmed);
+
+    if (!isNaN(isoDate)) {
+      return isoDate;
+    }
+  }
+
+  return null;
+}
+
+function getDashboardDaysOpen(process) {
+  const status = String(getProcessValue(process, ['status'], '')).toUpperCase();
+
+  if (status === 'CLOSED' || status === 'CANCELLED') {
+    return 0;
+  }
+
+  const createdDate = parseDashboardDate(
+    getProcessValue(process, [
+      'created_at',
+      'createdAt',
+      'created',
+      'open_date',
+      'date',
+      'updated_at'
+    ])
+  );
+
+  if (!createdDate) {
+    return 0;
+  }
+
+  const today = new Date();
+  const diff = today.getTime() - createdDate.getTime();
+
+  return Math.max(0, Math.floor(diff / 86400000));
+}
+
+function getDashboardRoute(process) {
+  const origin = getProcessValue(process, [
+    'origin',
+    'e_origin',
+    'i_origin',
+    'origin_airport'
+  ]);
+
+  const dest = getProcessValue(process, [
+    'dest',
+    'destination',
+    'e_dest',
+    'i_dest',
+    'destination_airport'
+  ]);
+
+  if (origin && dest) {
+    return `${origin} → ${dest}`;
+  }
+
+  return '—';
+}
+
+function getDashboardFileNumber(process) {
+  return getProcessValue(process, [
+    'file_number',
+    'fileNumber',
+    'e_file_number',
+    'i_file_number'
+  ], '—');
+}
+
+function getDashboardMawb(process) {
+  return getProcessValue(process, [
+    'mawb',
+    'e_mawb',
+    'i_mawb'
+  ], '');
+}
+
+function getDashboardMode(process) {
+  return String(getProcessValue(process, [
+    'mode',
+    'type',
+    'shipment_type'
+  ], '')).toLowerCase();
+}
+
+function getDashboardParty(process) {
+  return getProcessValue(process, [
+    'shipper',
+    'consignee',
+    'e_shipper',
+    'i_shipper',
+    'e_consignee',
+    'i_consignee'
+  ], '—');
+}
+
+function getDashboardStatus(process) {
+  return String(getProcessValue(process, ['status'], 'NEW')).toUpperCase();
+}
+
+function getDashboardProgress(process) {
+  if (typeof process.progress === 'number') {
+    return process.progress;
+  }
+
+  const checklist = process.checklist || process.checks || [];
+
+  if (Array.isArray(checklist) && checklist.length > 0) {
+    const done = checklist.filter(item => {
+      if (typeof item === 'boolean') {
+        return item;
+      }
+
+      return item.done || item.checked || item.completed;
+    }).length;
+
+    return Math.round((done / checklist.length) * 100);
+  }
+
+  return 0;
+}
+
+function getDashboardNextTask(process) {
+  if (process.next_task) {
+    return process.next_task;
+  }
+
+  if (process.nextTask) {
+    return process.nextTask;
+  }
+
+  const checklist = process.checklist || process.checks || [];
+
+  if (Array.isArray(checklist)) {
+    const pending = checklist.find(item => {
+      if (typeof item === 'boolean') {
+        return !item;
+      }
+
+      return !(item.done || item.checked || item.completed);
+    });
+
+    if (pending) {
+      return pending.name || pending.label || pending.title || 'Pending checklist item';
+    }
+  }
+
+  return '';
+}
+
+function isDashboardProcessOpen(process) {
+  const status = getDashboardStatus(process);
+
+  return status !== 'CLOSED' && status !== 'CANCELLED';
+}
+
+function renderDashboard() {
+  const data = getAllProcessesForDashboard();
+
+  const dashUpdated = document.getElementById('dash-updated');
+  const dashKpis = document.getElementById('dash-kpis');
+  const dashAlerts = document.getElementById('dash-alerts');
+  const dashRecent = document.getElementById('dash-recent');
+  const dashRevenue = document.getElementById('dash-revenue');
+
+  if (!dashAlerts) {
+    console.warn('Element #dash-alerts not found.');
+    return;
+  }
+
+  const openProcesses = data.filter(isDashboardProcessOpen);
+  const exportsCount = data.filter(p => getDashboardMode(p) === 'exp').length;
+  const importsCount = data.filter(p => getDashboardMode(p) === 'imp').length;
+  const closedCount = data.filter(p => getDashboardStatus(p) === 'CLOSED').length;
+
+  if (dashUpdated) {
+    dashUpdated.textContent = `Updated ${new Date().toLocaleString('en-US')}`;
+  }
+
+  if (dashKpis) {
+    dashKpis.innerHTML = `
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Total Processes</div>
+        <div class="dash-card-value">${data.length}</div>
+        <div class="dash-card-sub">All records</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Open</div>
+        <div class="dash-card-value warn">${openProcesses.length}</div>
+        <div class="dash-card-sub">Active files</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Exports</div>
+        <div class="dash-card-value accent">${exportsCount}</div>
+        <div class="dash-card-sub">Export files</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Imports</div>
+        <div class="dash-card-value imp">${importsCount}</div>
+        <div class="dash-card-sub">Import files</div>
+      </div>
+    `;
+  }
+
+  const alerts = [];
+
+  openProcesses.forEach(process => {
+    const fileNumber = getDashboardFileNumber(process);
+    const mawb = getDashboardMawb(process);
+    const route = getDashboardRoute(process);
+    const daysOpen = getDashboardDaysOpen(process);
+    const status = getDashboardStatus(process);
+    const progress = getDashboardProgress(process);
+    const nextTask = getDashboardNextTask(process);
+
+    if (daysOpen >= 14) {
+      alerts.push({
+        type: 'danger',
+        icon: '🔥',
+        text: `${fileNumber} has been open for ${daysOpen} days.`
+      });
+    } else if (daysOpen >= 7) {
+      alerts.push({
+        type: 'warn',
+        icon: '⏳',
+        text: `${fileNumber} has been open for ${daysOpen} days.`
+      });
+    }
+
+    if (status === 'ON HOLD') {
+      alerts.push({
+        type: 'info',
+        icon: '⏸️',
+        text: `${fileNumber} is currently ON HOLD.`
+      });
+    }
+
+    if (status === 'IN PROCESS' && progress === 0) {
+      alerts.push({
+        type: 'warn',
+        icon: '📋',
+        text: `${fileNumber} is in process but has no checklist progress.`
+      });
+    }
+  });
+
+  if (alerts.length === 0) {
+    dashAlerts.innerHTML = `
+      <div class="no-alerts">
+        No active alerts.
+      </div>
+    `;
+  } else {
+    dashAlerts.innerHTML = alerts.slice(0, 12).map(alert => `
+      <div class="alert-item ${alert.type}">
+        <span class="alert-icon">${alert.icon}</span>
+        <span>${alert.text}</span>
+      </div>
+    `).join('');
+  }
+
+  if (dashRecent) {
+    const recentProcesses = [...data]
+      .sort((a, b) => {
+        const dateA = parseDashboardDate(getProcessValue(a, ['updated_at', 'created_at', 'createdAt', 'date'])) || new Date(0);
+        const dateB = parseDashboardDate(getProcessValue(b, ['updated_at', 'created_at', 'createdAt', 'date'])) || new Date(0);
+
+        return dateB - dateA;
+      })
+      .slice(0, 8);
+
+    dashRecent.innerHTML = recentProcesses.map(process => {
+      const mode = getDashboardMode(process) === 'imp' ? 'IMP' : 'EXP';
+      const fileNumber = getDashboardFileNumber(process);
+      const route = getDashboardRoute(process);
+      const status = getDashboardStatus(process);
+      const daysOpen = getDashboardDaysOpen(process);
+
+      return `
+        <tr>
+          <td>${mode}</td>
+          <td class="mono">${fileNumber}</td>
+          <td>${route}</td>
+          <td>${status}</td>
+          <td>${daysOpen}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  if (dashRevenue) {
+    const totalRevenue = data.reduce((sum, process) => {
+      const revenue = Number(getProcessValue(process, [
+        'revenue',
+        'file_revenue',
+        'e_revenue',
+        'i_revenue'
+      ], 0));
+
+      return sum + revenue;
+    }, 0);
+
+    const totalProfit = data.reduce((sum, process) => {
+      const profit = Number(getProcessValue(process, [
+        'profit',
+        'file_profit',
+        'e_profit',
+        'i_profit'
+      ], 0));
+
+      return sum + profit;
+    }, 0);
+
+    dashRevenue.innerHTML = `
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Revenue</div>
+        <div class="dash-card-value green">$$
+{totalRevenue.toFixed(2)}</div> <div class="dash-card-sub">Total revenue</div> </div> <div class="dash-card no-click"> <div class="dash-card-label">Profit</div> <div class="dash-card-value green">
+$${totalProfit.toFixed(2)}</div>
+        <div class="dash-card-sub">Total profit</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Closed</div>
+        <div class="dash-card-value">${closedCount}</div>
+        <div class="dash-card-sub">Closed files</div>
+      </div>
+
+      <div class="dash-card no-click">
+        <div class="dash-card-label">Open Files</div>
+        <div class="dash-card-value warn">${openProcesses.length}</div>
+        <div class="dash-card-sub">Not closed/cancelled</div>
+      </div>
+    `;
+  }
+}
+
+function showScreen(screenName) {
+  document.querySelectorAll('.screen').forEach(screen => {
+    screen.classList.remove('active');
+  });
+  
+  if(screen === 'dash'){
+  renderDashboard();
+}
+
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+
+  const targetScreen = document.getElementById(`screen-${screenName}`);
+
+  if (targetScreen) {
+    targetScreen.classList.add('active');
+  }
+
+  const targetTab = document.getElementById(`tab-${screenName}`);
+
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
+
+  if (screenName === 'dash') {
+    renderDashboard();
+  }
+
+  if (screenName === 'list' && typeof renderTable === 'function') {
+    renderTable();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  if (document.getElementById('screen-dash')?.classList.contains('active')) {
+    renderDashboard();
+  }
 });
 </script>
 </body>
