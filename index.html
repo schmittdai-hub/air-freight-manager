@@ -1062,45 +1062,55 @@ function roundIATA(kg){
 async function initSupabase(){
   if(!SUPABASE_URL || SUPABASE_URL.includes('YOUR_PROJECT')){
     setSync('err','⚠ Setup needed');
-    cloudReady=false;
+    cloudReady = false;
     loadLocal();
     return;
   }
+
   if(!SUPABASE_KEY || !SUPABASE_KEY.startsWith('eyJ')){
     console.error('Supabase init failed: invalid API key format. Use the "anon public" JWT key from Project Settings → API, not a publishable key.');
     setSync('err','✗ Invalid API key');
-    cloudReady=false;
+    cloudReady = false;
     loadLocal();
     return;
   }
+
   try{
     supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     setSync('saving','⏳ Loading…');
+
     await loadFromCloud();
-    cloudReady=true;
+
+    cloudReady = true;
     setSync('ok','☁ Connected');
+
     checkLocalData();
+
   }catch(e){
     const msg = e?.message || e?.error_description || JSON.stringify(e);
     console.error('Supabase init failed:', msg, e);
+
     setSync('err','✗ Offline mode');
-    cloudReady=false;
+    cloudReady = false;
+
     loadLocal();
   }
 }
 
+
 async function loadFromCloud(){
-  const {data:procs, error:e1} = await supa
+  const { data: procs, error: e1 } = await supa
     .from('processes')
     .select('*')
-    .order('saved_at',{ascending:false});
+    .order('saved_at', { ascending: false });
 
   if(e1) throw e1;
 
   processes = (procs || []).map(rowToProcess);
   window.processes = processes;
 
-  const {data:comps, error:e2} = await supa
+  const { data: comps, error: e2 } = await supa
     .from('companies')
     .select('*')
     .order('name');
@@ -1108,12 +1118,12 @@ async function loadFromCloud(){
   if(e2) throw e2;
 
   companies = (comps || []).map(c => ({
-    id:c.id,
-    name:c.name,
-    type:c.type,
-    contact:c.contact,
-    phone:c.phone,
-    notes:c.notes
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    contact: c.contact,
+    phone: c.phone,
+    notes: c.notes
   }));
 
   renderTable();
@@ -1124,6 +1134,247 @@ async function loadFromCloud(){
   }
 }
 
+
+/**
+ * Verifica se uma string parece UUID.
+ * Isso evita tentar inserir um id inválido em uma coluna uuid.
+ */
+function isUuid(value){
+  return typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+
+/**
+ * Procura um processo existente no Supabase.
+ * Prioridade:
+ * 1. key
+ * 2. id, se for UUID válido
+ */
+async function findExistingProcessRow(row){
+  if(row?.key){
+    const { data, error } = await supa
+      .from('processes')
+      .select('*')
+      .eq('key', row.key)
+      .limit(1)
+      .maybeSingle();
+
+    if(error) throw error;
+    if(data) return data;
+  }
+
+  if(row?.id && isUuid(row.id)){
+    const { data, error } = await supa
+      .from('processes')
+      .select('*')
+      .eq('id', row.id)
+      .limit(1)
+      .maybeSingle();
+
+    if(error) throw error;
+    if(data) return data;
+  }
+
+  return null;
+}
+
+
+/**
+ * Salva um processo no Supabase sem gerar erro 409.
+ *
+ * Comportamento padrão:
+ * - Se já existe a mesma key no Supabase: atualiza esse registro.
+ * - Se não existe: insere novo registro.
+ *
+ * Use preserveExisting:true em migração/importação para NÃO sobrescrever
+ * nada que já existe no Supabase.
+ */
+async function saveProcessRowCloud(row, options = {}){
+  const { preserveExisting = false } = options;
+
+  if(!cloudReady || !supa){
+    throw new Error('Supabase is not ready.');
+  }
+
+  if(!row){
+    throw new Error('Invalid process row.');
+  }
+
+  const safeRow = { ...row };
+
+  if(!safeRow.key){
+    throw new Error('Cannot save process without key.');
+  }
+
+  const now = new Date().toISOString();
+  safeRow.saved_at = now;
+
+  const existing = await findExistingProcessRow(safeRow);
+
+  /**
+   * Se já existe no Supabase:
+   * - Em salvamento normal: atualiza.
+   * - Em migração/restauração com preserveExisting:true: mantém o que está na nuvem.
+   */
+  if(existing){
+    if(preserveExisting){
+      return {
+        data: existing,
+        skipped: true,
+        reason: 'Already exists in Supabase'
+      };
+    }
+
+    const updateRow = { ...safeRow };
+
+    /**
+     * Não atualizamos o id.
+     * Isso evita conflito de primary key e preserva o id original do Supabase.
+     */
+    delete updateRow.id;
+
+    /**
+     * Não alteramos created_at.
+     * O histórico original do Supabase fica preservado.
+     */
+    delete updateRow.created_at;
+
+    const { data, error } = await supa
+      .from('processes')
+      .update(updateRow)
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if(error) throw error;
+
+    return {
+      data,
+      updated: true
+    };
+  }
+
+  /**
+   * Se não existe no Supabase, vamos inserir.
+   * Mas antes garantimos que o id não cause conflito.
+   */
+
+  if(safeRow.id && !isUuid(safeRow.id)){
+    delete safeRow.id;
+  }
+
+  if(safeRow.id && isUuid(safeRow.id)){
+    const { data: sameId, error: idError } = await supa
+      .from('processes')
+      .select('*')
+      .eq('id', safeRow.id)
+      .limit(1)
+      .maybeSingle();
+
+    if(idError) throw idError;
+
+    /**
+     * Se existe outro registro com o mesmo id, mas outra key,
+     * removemos o id para o Supabase gerar um novo.
+     * Assim não perdemos nem sobrescrevemos o registro antigo.
+     */
+    if(sameId && sameId.key !== safeRow.key){
+      delete safeRow.id;
+    }
+  }
+
+  if(!safeRow.created_at){
+    delete safeRow.created_at;
+  }
+
+  const { data, error } = await supa
+    .from('processes')
+    .insert(safeRow)
+    .select()
+    .single();
+
+  if(error){
+    /**
+     * Proteção extra contra condição de corrida:
+     * se outro save criou o registro ao mesmo tempo, tentamos atualizar.
+     */
+    if(error.code === '23505' || String(error.message || '').toLowerCase().includes('duplicate')){
+      const existingAfterConflict = await findExistingProcessRow(safeRow);
+
+      if(existingAfterConflict){
+        if(preserveExisting){
+          return {
+            data: existingAfterConflict,
+            skipped: true,
+            reason: 'Already exists in Supabase after conflict'
+          };
+        }
+
+        const updateRow = { ...safeRow };
+        delete updateRow.id;
+        delete updateRow.created_at;
+
+        const { data: updatedData, error: updateError } = await supa
+          .from('processes')
+          .update(updateRow)
+          .eq('id', existingAfterConflict.id)
+          .select()
+          .single();
+
+        if(updateError) throw updateError;
+
+        return {
+          data: updatedData,
+          updated: true,
+          recoveredFromConflict: true
+        };
+      }
+    }
+
+    throw error;
+  }
+
+  return {
+    data,
+    inserted: true
+  };
+}
+
+
+/**
+ * Salva vários processos com segurança.
+ *
+ * Para migração/restauração, use:
+ * saveProcessRowsCloud(rows, { preserveExisting: true })
+ */
+async function saveProcessRowsCloud(rows, options = {}){
+  const results = [];
+  const seenKeys = new Set();
+
+  for(const row of rows || []){
+    if(!row || !row.key) continue;
+
+    /**
+     * Evita tentar salvar duas vezes a mesma key no mesmo lote.
+     */
+    if(seenKeys.has(row.key)){
+      results.push({
+        key: row.key,
+        skipped: true,
+        reason: 'Duplicate key in current batch'
+      });
+      continue;
+    }
+
+    seenKeys.add(row.key);
+
+    const result = await saveProcessRowCloud(row, options);
+    results.push(result);
+  }
+
+  return results;
+}
 
 // Normaliza volumes do banco {kg,lbs,vols} para o formato da UI {wkg,wlbs,...}
 function normalizeVolumes(vols){
