@@ -2005,7 +2005,6 @@ $${impRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:
     </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-hint);padding:16px">No processes yet</td></tr>';
 
   // Revenue
-  const totalRev = processes.reduce((s,p)=>s+num(p.revenue),0);
   const totalProfit = processes.reduce((s,p)=>s+num(p.profit),0);
   const expRev = processes.filter(p=>p.mode==='exp').reduce((s,p)=>s+num(p.revenue),0);
   const impRev = processes.filter(p=>p.mode==='imp').reduce((s,p)=>s+num(p.revenue),0);
