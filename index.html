@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 :root{
@@ -1073,7 +1073,7 @@ async function loadFromCloud(){
   const {data:procs, error:e1} = await supa
     .from('processes')
     .select('*')
-    .order('updatedAt',{ascending:false});
+    .limit(500);
 
   if(e1) throw e1;
 
@@ -1639,13 +1639,12 @@ function recalcTotals(prefix){
 }
 
 function collectChecklist(prefix){
-  const items = prefix==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const out = {};
+  const items = prefix==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
+  const out   = {};
   items.forEach((_,i)=>{
-    const key = 'chk_'+i;
-    const cb = document.getElementById(prefix+'_chk_'+key);
-    const dt = document.getElementById(prefix+'_dt_'+key);
-    out[key] = {done: cb ? cb.checked : false, date: dt ? dt.value : ''};
+    const cb = document.getElementById(prefix+'_chk_'+i);
+    const dt = document.getElementById(prefix+'_dt_'+i);
+    out['chk_'+i] = {done: cb ? cb.checked : false, date: dt ? dt.value : ''};
   });
   return out;
 }
@@ -1657,44 +1656,54 @@ function collectChecklist(prefix){
 // CHECKLIST
 // ═══════════════════════════════════════════
 function buildChecklist(p, _unused, state){
-  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const chkState = state || {};
-  const container=document.getElementById(p+'_checklist');
-  container.innerHTML='';
-  items.forEach((item,i)=>{
-    const div=document.createElement('div');
-    const key='chk_'+i;
-    div.className='check-item';div.id=p+'_ci_'+key;
-    const s = chkState[key];
-    const isChecked = s && !!(s.done || s.checked);
-    const dateVal = s && s.date ? s.date : '';
-    if(isChecked) div.classList.add('done');
-    div.innerHTML=`<input type="checkbox" id="${p}_chk_${key}" onchange="onCheck('${p}','${key}',this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${key}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
+  const items = p==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
+  const chk   = state || {};
+  const container = document.getElementById(p+'_checklist');
+  if(!container) return;
+  container.innerHTML = '';
+  items.forEach((item, i)=>{
+    const s          = chk['chk_'+i] || {};
+    const isChecked  = !!(s.done || s.checked);
+    const dateVal    = s.date || '';
+    const div        = document.createElement('div');
+    div.className    = 'check-item' + (isChecked ? ' done' : '');
+    div.id           = p+'_ci_'+i;
+    div.innerHTML    = `<input type="checkbox" id="${p}_chk_${i}" onchange="onCheck('${p}',${i},this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${i}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
     container.appendChild(div);
   });
   initDatePickers();
   updateProgress(p);
 }
-function onCheck(p,key,el){
-  const ci=document.getElementById(p+'_ci_'+key);
-  if(el.checked){ci.classList.add('done');const dt=document.getElementById(p+'_dt_'+key);if(dt&&!dt.value){const n=new Date();dt.value=(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0')+'/'+n.getFullYear();}}
-  else{ci.classList.remove('done');}
-  updateProgress(p);updateBadge(p);
+function onCheck(p,i,el){
+  const ci = document.getElementById(p+'_ci_'+i);
+  if(ci){
+    if(el.checked){
+      ci.classList.add('done');
+      const dt = document.getElementById(p+'_dt_'+i);
+      if(dt && !dt.value){ const n=new Date(); dt.value=(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0')+'/'+n.getFullYear(); }
+    } else { ci.classList.remove('done'); }
+  }
+  updateProgress(p); updateBadge(p);
 }
 function updateProgress(p){
-  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
-  const total=items.length,pct=Math.round((done/total)*100);
-  document.getElementById(p+'_prog_fill').style.width=pct+'%';
-  document.getElementById(p+'_prog_text').textContent=done+' of '+total+' steps completed';
-  document.getElementById(p+'_prog_pct').textContent=pct+'%';
-  document.getElementById(p+'_chk_pct').textContent=done+' / '+total;
+  const items = p==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
+  const done  = items.filter((_,i) => document.getElementById(p+'_chk_'+i)?.checked).length;
+  const total = items.length;
+  const pct   = Math.round((done/total)*100);
+  const fill  = document.getElementById(p+'_prog_fill');
+  const text  = document.getElementById(p+'_prog_text');
+  const pctEl = document.getElementById(p+'_prog_pct');
+  const badge = document.getElementById(p+'_chk_pct');
+  if(fill)  fill.style.width  = pct+'%';
+  if(text)  text.textContent  = done+' of '+total+' steps completed';
+  if(pctEl) pctEl.textContent = pct+'%';
+  if(badge) badge.textContent = done+' / '+total;
 }
 function updateBadge(p){
-  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
-  const sel=document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
-  if(done>0&&sel.value==='NEW')sel.value='IN PROCESS';
+  const items = p==='e' ? EXP_CHECKLIST : IMP_CHECKLIST;
+  const done  = items.filter((_,i) => document.getElementById(p+'_chk_'+i)?.checked).length;
+  const sel   = document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
+  if(sel && done>0 && sel.value==='NEW') sel.value='IN PROCESS';
 }
 
 
@@ -1992,13 +2001,11 @@ function daysOpenBadge(p){
 // NEXT TASK
 // ============================================
 function nextTask(p){
-  const items = p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
-  const chk = p.checklist||{};
-  for(let i=0;i<items.length;i++){
+  const items = p.mode==='exp' ? EXP_CHECKLIST : IMP_CHECKLIST;
+  const chk   = p.checklist || {};
+  for(let i=0; i<items.length; i++){
     const v = chk['chk_'+i];
-    if(!v || !(v.done||v.checked)){
-      return {name:items[i].label, index:i, done:false};
-    }
+    if(!v || !(v.done || v.checked)) return {name:items[i].label, index:i, done:false};
   }
   return {name:'All complete', index:items.length, done:true};
 }
@@ -2053,7 +2060,7 @@ function renderTable(){
     const totalItems = chkList.length;
     let done = 0;
     const chk = p.checklist || {};
-    chkList.forEach((_,i) => { const v=chk['chk_'+i]; if(v&&(v.done||v.checked)) done++; });
+    for(let i=0;i<totalItems;i++){ const v=chk['chk_'+i]; if(v&&(v.done||v.checked)) done++; }
     const pct = Math.round((done/totalItems)*100);
     const statusPill = statusPillHtml(p.status||'NEW');
     return `
