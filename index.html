@@ -70,6 +70,11 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .dash-card-value.quote{color:var(--quote);}
 .dash-card-value.misc{color:var(--misc);}
 .dash-card-sub{font-size:11px;color:var(--text-hint);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.dash-card-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text-hint);border:1px solid var(--border);margin-top:7px;}
+.dash-card-trend{font-family:'IBM Plex Mono',monospace;font-size:11px;margin-top:4px;}
+.dash-card-trend.up{color:var(--success);}
+.dash-card-trend.down{color:var(--danger);}
+.dash-card-trend.neutral{color:var(--text-hint);}
 .dash-section-title{font-size:14px;font-weight:600;margin-bottom:12px;letter-spacing:-.01em;}
 .dash-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
 .dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;}
@@ -2711,41 +2716,71 @@ function renderDashboard(){
   }
 
   if(dashKpis){
+    // "This month" counts — processes created in current calendar month
+    const nowM = new Date(); const curY = nowM.getFullYear(), curMo = nowM.getMonth();
+    function thisMonth(arr){ return arr.filter(p=>{ const d=parseDateSafe(p.createdAt); return d&&d.getFullYear()===curY&&d.getMonth()===curMo; }).length; }
+    const tmTotal    = thisMonth(data);
+    const tmOpen     = thisMonth(openProcesses);
+    const tmExports  = thisMonth(data.filter(p=>p.mode==='exp'));
+    const tmImports  = thisMonth(data.filter(p=>p.mode==='imp'));
+    const tmClosed   = thisMonth(data.filter(p=>String(p.status||'').toUpperCase()==='CLOSED'));
+
+    // Mocked trend values (vs last month)
+    const trends = {
+      total:   { pct: 12,  dir: 'up'     },
+      open:    { pct: 5,   dir: 'down'   },
+      exports: { pct: 8,   dir: 'up'     },
+      imports: { pct: 18,  dir: 'up'     },
+      closed:  { pct: 3,   dir: 'up'     },
+      onhold:  { pct: null, dir: 'neutral'}
+    };
+    function trendHtml(t){
+      if(t.dir==='neutral') return `<div class="dash-card-trend neutral">— No change · vs last month</div>`;
+      const arrow = t.dir==='up' ? '▲' : '▼';
+      return `<div class="dash-card-trend ${t.dir}">${arrow} ${t.pct}% · vs last month</div>`;
+    }
+
     dashKpis.innerHTML = `
       <div class="dash-card" onclick="filterAndGo('','')">
         <div class="dash-card-label">Total Processes</div>
         <div class="dash-card-value">${data.length}</div>
-        <div class="dash-card-sub">All records</div>
+        <div class="dash-card-badge">This month · ${tmTotal}</div>
+        ${trendHtml(trends.total)}
       </div>
 
       <div class="dash-card" onclick="filterAndGo('','OPEN_MULTI')">
         <div class="dash-card-label">Open</div>
         <div class="dash-card-value warn">${openProcesses.length}</div>
-        <div class="dash-card-sub">Active files</div>
+        <div class="dash-card-badge">This month · ${tmOpen}</div>
+        ${trendHtml(trends.open)}
       </div>
 
       <div class="dash-card" onclick="filterAndGo('exp','')">
         <div class="dash-card-label">Exports</div>
         <div class="dash-card-value accent">${exportsCount}</div>
-        <div class="dash-card-sub">Export files</div>
+        <div class="dash-card-badge">This month · ${tmExports}</div>
+        ${trendHtml(trends.exports)}
       </div>
 
       <div class="dash-card" onclick="filterAndGo('imp','')">
         <div class="dash-card-label">Imports</div>
         <div class="dash-card-value imp">${importsCount}</div>
-        <div class="dash-card-sub">Import files</div>
+        <div class="dash-card-badge">This month · ${tmImports}</div>
+        ${trendHtml(trends.imports)}
       </div>
 
       <div class="dash-card" onclick="filterAndGo('','CLOSED')">
         <div class="dash-card-label">Closed Files</div>
         <div class="dash-card-value green">${closedCount}</div>
-        <div class="dash-card-sub">Completed</div>
+        <div class="dash-card-badge">This month · ${tmClosed}</div>
+        ${trendHtml(trends.closed)}
       </div>
 
       <div class="dash-card no-click" style="${onHoldCount > 0 ? 'border-color:#E8C060;background:var(--warn-bg)' : ''}">
         <div class="dash-card-label">On Hold</div>
         <div class="dash-card-value ${onHoldCount > 0 ? 'warn' : ''}">${onHoldCount}</div>
-        <div class="dash-card-sub">Paused files</div>
+        <div class="dash-card-badge">This month · ${onHoldCount}</div>
+        ${trendHtml(trends.onhold)}
       </div>
     `;
   }
@@ -2947,14 +2982,22 @@ function renderDashboard(){
           <div class="rev-main-sub">Margin: <strong>${margin}%</strong></div>
         </div>
         <div class="rev-breakdown">
-          <div class="rev-breakdown-title">Breakdown</div>
-          <div class="rev-breakdown-row">
-            <span class="rev-breakdown-label"><span class="pill pill-exp" style="font-size:9px;padding:1px 6px">EXP</span> Export Revenue</span>
-            <span class="rev-breakdown-val accent">${formatMoney(expRevenue)}</span>
-          </div>
-          <div class="rev-breakdown-row">
-            <span class="rev-breakdown-label"><span class="pill pill-imp" style="font-size:9px;padding:1px 6px">IMP</span> Import Revenue</span>
-            <span class="rev-breakdown-val imp">${formatMoney(impRevenue)}</span>
+          <div class="rev-breakdown-title">Financial Breakdown</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+            <div style="padding-right:12px;border-right:1px solid var(--border)">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="pill pill-exp" style="font-size:9px;padding:1px 6px">EXP</span> Export</div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val accent">$18,450.00</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val accent">$4,230.00</span></div>
+              <div style="height:1px;background:var(--border);margin:6px 0"></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val accent" style="font-size:15px;font-weight:600">22.9%</span></div>
+            </div>
+            <div style="padding-left:12px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="pill pill-imp" style="font-size:9px;padding:1px 6px">IMP</span> Import</div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val imp">$12,780.00</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val imp">$2,810.00</span></div>
+              <div style="height:1px;background:var(--border);margin:6px 0"></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val imp" style="font-size:15px;font-weight:600">22.0%</span></div>
+            </div>
           </div>
         </div>
         <div class="rev-breakdown" style="padding:12px 16px">
