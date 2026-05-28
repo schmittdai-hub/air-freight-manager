@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 :root{
@@ -53,7 +54,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .migrate-banner-text{font-size:12px;color:var(--warn);flex:1;}
 .migrate-banner strong{font-weight:600;}
 
-.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.dash-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
 .dash-card{transition:transform .15s,border-color .15s,box-shadow .15s;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px 18px;cursor:pointer;transition:all .15s;}
 .dash-card:hover{border-color:var(--accent-mid);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.06);}
 .dash-card.no-click{cursor:default;}
@@ -72,13 +73,13 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .dash-section-title{font-size:14px;font-weight:600;margin-bottom:12px;letter-spacing:-.01em;}
 .dash-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
 .dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;}
-.alert-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:6px;transition:filter .15s;}
+.alert-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:6px;transition:filter .15s;border-left-width:4px!important;border-left-style:solid!important;}
 .alert-item[onclick]:hover{filter:brightness(.95);}
 .alert-arrow{margin-left:auto;opacity:.5;font-size:14px;}
 .alert-item:hover{opacity:.8;}
-.alert-item.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn);}
-.alert-item.danger{background:var(--danger-bg);border:1px solid #E08080;color:var(--danger);}
-.alert-item.info{background:var(--accent-light);border:1px solid #A0C0E8;color:var(--accent);}
+.alert-item.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn);border-left-color:#E8A000!important;}
+.alert-item.danger{background:var(--danger-bg);border:1px solid #E08080;color:var(--danger);border-left-color:#CC0000!important;}
+.alert-item.info{background:var(--accent-light);border:1px solid #A0C0E8;color:var(--accent);border-left-color:#1A4F8A!important;}
 .alert-icon{font-size:14px;flex-shrink:0;}
 .no-alerts{font-size:12px;color:var(--text-hint);text-align:center;padding:20px;}
 .recent-table{width:100%;border-collapse:collapse;}
@@ -278,7 +279,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
 
-.rev-summary-grid{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;}
+.rev-summary-grid{display:grid;grid-template-columns:1fr 1fr 1.4fr 2fr;gap:12px;}
 .rev-main-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px 22px;}
 .rev-main-card.profit{border-color:var(--success-border);background:var(--success-bg);}
 .rev-main-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-hint);margin-bottom:8px;}
@@ -301,7 +302,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .fees-total-value{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:var(--imp);}
 @media print{.app-nav,.form-actions,.modal-overlay{display:none!important;}.screen{padding:8px;}.section{break-inside:avoid;}}
 @media(max-width:780px){
-  .dash-grid{grid-template-columns:1fr 1fr;}
+  .dash-grid{grid-template-columns:repeat(3,1fr);}
   .dash-two-col{grid-template-columns:1fr;}
   .cols-3,.cols-4,.cols-5{grid-template-columns:1fr 1fr;}
   .cols-2{grid-template-columns:1fr;}
@@ -388,10 +389,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     </div>
     <div class="dash-panel">
       <div class="dash-section-title">🕐 Recent Processes</div>
+      <div style="max-height:320px;overflow-y:auto">
       <table class="recent-table">
         <thead><tr><th>Type</th><th>File #</th><th>Route</th><th>Status</th><th>Days Open</th></tr></thead>
         <tbody id="dash-recent"></tbody>
       </table>
+      </div>
     </div>
   </div>
 </div>
@@ -412,23 +415,24 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     </div>
   </div>
   <div class="filters-bar">
-    <input class="filter-input" id="f-search" placeholder="Search File #, MAWB, Shipper, Route…" style="width:240px" oninput="renderTable()">
+    <input class="filter-input" id="f-search" placeholder="Search File #, MAWB, HAWB, Airline, Origin, Dest, Agent, Reference…" style="width:280px" oninput="renderTable()">
     <select class="filter-select" id="f-mode" onchange="renderTable()">
       <option value="">Export + Import</option>
       <option value="exp">Export only</option>
       <option value="imp">Import only</option>
     </select>
-    <select class="filter-select" id="f-status" onchange="renderTable()">
-      <option value="">All Statuses</option>
-      <option value="OPEN_MULTI">Open (Active)</option>
-      <option value="QUOTE">Quote</option>
-      <option value="NEW">New</option>
-      <option value="IN PROCESS">In Process</option>
-      <option value="MISC/TRUCKING">Miscellaneous/Trucking</option>
-      <option value="CLOSED">Closed</option>
-      <option value="ON HOLD">On Hold</option>
-      <option value="CANCELLED">Cancelled</option>
-    </select>
+    <div class="multi-status-wrap" id="multi-status-wrap" style="position:relative">
+      <button class="filter-select" id="multi-status-btn" type="button" onclick="toggleStatusDropdown()" style="cursor:pointer;min-width:140px;text-align:left">Status ▾</button>
+      <div id="multi-status-dropdown" style="display:none;position:absolute;top:100%;left:0;background:var(--surface);border:1px solid var(--accent-mid);border-radius:3px;z-index:400;min-width:200px;padding:6px 0;box-shadow:0 4px 12px rgba(0,0,0,.1)">
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="NEW" onchange="renderTable()"> New</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="QUOTE" onchange="renderTable()"> Quote</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="IN PROCESS" onchange="renderTable()"> In Process</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="CLOSED" onchange="renderTable()"> Closed</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="ON HOLD" onchange="renderTable()"> On Hold</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="CANCELLED" onchange="renderTable()"> Cancelled</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="MISC/TRUCKING" onchange="renderTable()"> Miscellaneous/Trucking</label>
+      </div>
+    </div>
     <input class="filter-input" id="f-date-from" type="text" placeholder="From MM/DD/YYYY" style="width:148px" oninput="renderTable()">
     <input class="filter-input" id="f-date-to" type="text" placeholder="To MM/DD/YYYY" style="width:148px" oninput="renderTable()">
     <button class="clear-filters" onclick="clearFilters()">Clear</button>
@@ -460,8 +464,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     </div>
     <div class="form-topbar-right">
       <select class="status-select" id="exp-status-select">
-        <option value="NEW">NEW</option><option value="IN PROCESS">IN PROCESS</option>
-        <option value="CLOSED">CLOSED</option><option value="ON HOLD">ON HOLD</option><option value="CANCELLED">CANCELLED</option>
+        <option value="NEW">NEW</option><option value="QUOTE">QUOTE</option>
+        <option value="IN PROCESS">IN PROCESS</option><option value="CLOSED">CLOSED</option>
+        <option value="ON HOLD">ON HOLD</option><option value="CANCELLED">CANCELLED</option>
+        <option value="MISC/TRUCKING">MISCELLANEOUS/TRUCKING</option>
       </select>
       <div class="file-number-display" id="exp-file-display">—</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="exp-days-open"></div>
@@ -739,8 +745,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     </div>
     <div class="form-topbar-right">
       <select class="status-select" id="imp-status-select">
-        <option value="NEW">NEW</option><option value="IN PROCESS">IN PROCESS</option>
-        <option value="CLOSED">CLOSED</option><option value="ON HOLD">ON HOLD</option><option value="CANCELLED">CANCELLED</option>
+        <option value="NEW">NEW</option><option value="QUOTE">QUOTE</option>
+        <option value="IN PROCESS">IN PROCESS</option><option value="CLOSED">CLOSED</option>
+        <option value="ON HOLD">ON HOLD</option><option value="CANCELLED">CANCELLED</option>
+        <option value="MISC/TRUCKING">MISCELLANEOUS/TRUCKING</option>
       </select>
       <div class="file-number-display imp" id="imp-file-display">—</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="imp-days-open"></div>
@@ -1860,6 +1868,9 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.ac-wrap')){
     document.querySelectorAll('.ac-list').forEach(l=>l.style.display='none');
   }
+  if(!e.target.closest('#multi-status-wrap')){
+    const dd=$('multi-status-dropdown');if(dd)dd.style.display='none';
+  }
 });
 function escapeHtml(s){return(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function escapeAttr(s){return(s||'').replace(/'/g,"\\'");}
@@ -1886,8 +1897,8 @@ function iDGT(t){
   else{$('i_lbl_cao').classList.add('active-dg');$('i_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=cao]').checked=true;}
 }
 function eLV(yes){
-  if(yes){$('e_lbl_lv_yes').classList.add('active');$('e_lbl_lv_no').classList.remove('active');$('e_lv_fields').classList.add('visible');document.querySelector('input[name=e_lv][value=yes]').checked=true;}
-  else{$('e_lbl_lv_no').classList.add('active');$('e_lbl_lv_yes').classList.remove('active');$('e_lv_fields').classList.remove('visible');document.querySelector('input[name=e_lv][value=no]').checked=true;}
+  if(yes){$('e_lbl_lv_yes').classList.add('active');$('e_lbl_lv_no').classList.remove('active');$('e_lv_fields').classList.remove('visible');document.querySelector('input[name=e_lv][value=yes]').checked=true;}
+  else{$('e_lbl_lv_no').classList.add('active');$('e_lbl_lv_yes').classList.remove('active');$('e_lv_fields').classList.add('visible');document.querySelector('input[name=e_lv][value=no]').checked=true;}
 }
 function setPUFrom(mode){
   if(mode==='same'){$('e_pu_same_btn').classList.add('active');$('e_pu_other_btn').classList.remove('active');$('e_pu_other_wrap').style.display='none';}
@@ -1924,7 +1935,7 @@ function addLeg(prefix,data){
     <div class="field"><input type="text" class="leg-from" placeholder="MIA" style="text-transform:uppercase" maxlength="3" value="${data?escapeAttr(data.from||''):''}"></div>
     <div class="field"><input type="text" class="leg-to" placeholder="GRU" style="text-transform:uppercase" maxlength="3" value="${data?escapeAttr(data.to||''):''}"></div>
     <div style="display:flex;gap:6px;align-items:end;">
-      <div class="field" style="flex:1"><input type="text" class="leg-date datepick-dt" placeholder="MM/DD/YYYY HH:MM" value="${data?escapeAttr(data.date||''):''}"></div>
+      <div class="field" style="flex:1"><input type="text" class="leg-date datepick" placeholder="MM/DD/YYYY" value="${data?escapeAttr(data.date||''):''}"></div>
       <button class="remove-btn" onclick="this.closest('.route-stop').remove();renumberLegs('${prefix}');">✕</button>
     </div>`;
   wrap.appendChild(div);
@@ -2448,18 +2459,21 @@ function nextTaskBadge(p){
 function renderTable(){
   const search = $('f-search').value.trim().toLowerCase();
   const modeF = $('f-mode').value;
-  const statusF = $('f-status').value;
+  // Multi-select status: collect checked values
+  const checkedStatuses = Array.from(document.querySelectorAll('#multi-status-dropdown input[type=checkbox]:checked')).map(cb=>cb.value);
   const dFrom = parseDate($('f-date-from').value);
   const dTo = parseDate($('f-date-to').value);
 
-  const OPEN_STATUSES = ['NEW','IN PROCESS','MISC/TRUCKING'];
+  // Update button label
+  const btn = $('multi-status-btn');
+  if(btn) btn.textContent = checkedStatuses.length ? checkedStatuses.length+' Status(es) ▾' : 'Status ▾';
+
   let rows = processes.filter(p=>{
     if(modeF && p.mode!==modeF)return false;
-    if(statusF === 'OPEN_MULTI'){
-      if(!OPEN_STATUSES.includes(p.status||'NEW'))return false;
-    } else if(statusF && (p.status||'NEW')!==statusF)return false;
+    if(checkedStatuses.length && !checkedStatuses.includes(p.status||'NEW'))return false;
     if(search){
-      const hay = [p.fileNumber,p.mawb,p.shipper,p.consignee,p.origin,p.dest,p.airline].join(' ').toLowerCase();
+      // Search all Section 1 identification fields (both exp and imp)
+      const hay = [p.fileNumber,p.mawb,p.hawb,p.airline,p.origin,p.dest,p.agent,p.reference,p.shipper,p.consignee].join(' ').toLowerCase();
       if(!hay.includes(search))return false;
     }
     if(dFrom || dTo){
@@ -2524,8 +2538,14 @@ function statusPillHtml(s){
 }
 function clearFilters(){
   ['f-search','f-date-from','f-date-to'].forEach(id=>$(id).value='');
-  $('f-mode').value='';$('f-status').value='';
+  $('f-mode').value='';
+  document.querySelectorAll('#multi-status-dropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
+  const btn = $('multi-status-btn'); if(btn) btn.textContent='Status ▾';
   renderTable();
+}
+function toggleStatusDropdown(){
+  const dd = $('multi-status-dropdown');
+  if(dd) dd.style.display = dd.style.display==='none'?'block':'none';
 }
 
 // ============================================
@@ -2715,6 +2735,18 @@ function renderDashboard(){
         <div class="dash-card-value imp">${importsCount}</div>
         <div class="dash-card-sub">Import files</div>
       </div>
+
+      <div class="dash-card" onclick="filterAndGo('','CLOSED')">
+        <div class="dash-card-label">Closed Files</div>
+        <div class="dash-card-value green">${closedCount}</div>
+        <div class="dash-card-sub">Completed</div>
+      </div>
+
+      <div class="dash-card no-click" style="${onHoldCount > 0 ? 'border-color:#E8C060;background:var(--warn-bg)' : ''}">
+        <div class="dash-card-label">On Hold</div>
+        <div class="dash-card-value ${onHoldCount > 0 ? 'warn' : ''}">${onHoldCount}</div>
+        <div class="dash-card-sub">Paused files</div>
+      </div>
     `;
   }
 
@@ -2829,32 +2861,51 @@ function renderDashboard(){
   }
 
   if(dashRecent){
-    const recent = [...data]
+    const RECENT_STATUSES = ['NEW','QUOTE','IN PROCESS','MISC/TRUCKING'];
+    const recentFiltered = [...data]
+      .filter(p => RECENT_STATUSES.includes(String(p.status||'').toUpperCase()))
       .sort((a,b) => {
         const dateA = parseDateSafe(a.updatedAt || a.createdAt) || new Date(0);
         const dateB = parseDateSafe(b.updatedAt || b.createdAt) || new Date(0);
-
         return dateB - dateA;
-      })
-      .slice(0, 8);
+      });
+    const recentSlice = recentFiltered.slice(0, 10);
 
-    dashRecent.innerHTML = recent.map(p => {
+    dashRecent.innerHTML = recentSlice.map(p => {
       const mode = p.mode === 'imp' ? 'IMP' : 'EXP';
       const fileNumber = p.fileNumber || '—';
       const route = p.origin && p.dest ? `${p.origin} → ${p.dest}` : '—';
-      const status = p.status || 'NEW';
-      const daysOpen = getDaysOpen(p);
+      const status = statusPillHtml(p.status || 'NEW');
+      const d = getDaysOpen(p);
+      let badgeCls, badgeColor;
+      if(d <= 5){ badgeCls='days-fresh'; badgeColor=''; }
+      else if(d <= 14){ badgeCls='days-mid'; badgeColor=''; }
+      else { badgeCls='days-old'; badgeColor=''; }
+      const daysBadge = `<span class="days-badge ${badgeCls}">${d}d</span>`;
 
       return `
         <tr onclick="editProcess('${p.id}')" style="cursor:pointer">
-          <td>${mode}</td>
-          <td class="mono">${fileNumber}</td>
-          <td>${route}</td>
+          <td><span class="pill ${p.mode==='exp'?'pill-exp':'pill-imp'}">${mode}</span></td>
+          <td class="mono">${escapeHtml(fileNumber)}</td>
+          <td>${escapeHtml(route)}</td>
           <td>${status}</td>
-          <td>${daysOpen}</td>
+          <td>${daysBadge}</td>
         </tr>
       `;
     }).join('');
+
+    // Footer count
+    const recentPanel = dashRecent.closest('.dash-panel');
+    let footerEl = recentPanel ? recentPanel.querySelector('.recent-footer') : null;
+    if(!footerEl && recentPanel){
+      footerEl = document.createElement('div');
+      footerEl.className = 'recent-footer';
+      footerEl.style.cssText = 'margin-top:10px;font-size:11px;color:var(--text-hint);font-family:IBM Plex Mono,monospace;display:flex;justify-content:space-between;align-items:center';
+      recentPanel.appendChild(footerEl);
+    }
+    if(footerEl){
+      footerEl.innerHTML = `<span>Exibindo ${recentSlice.length} de ${recentFiltered.length} processos</span><a href="#" onclick="filterAndGo('','');return false;" style="color:var(--accent);text-decoration:none;font-size:11px">Ver histórico completo →</a>`;
+    }
   }
 
   if(dashRevenue){
@@ -2863,6 +2914,25 @@ function renderDashboard(){
     const expRevenue   = data.filter(p=>p.mode==='exp').reduce((sum,p) => sum + Number(p.revenue || 0), 0);
     const impRevenue   = data.filter(p=>p.mode==='imp').reduce((sum,p) => sum + Number(p.revenue || 0), 0);
     const margin       = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+
+    // Last 6 months labels and counts
+    const now = new Date();
+    const monthLabels = [];
+    const expCounts = [];
+    const impCounts = [];
+    for(let i=5; i>=0; i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      monthLabels.push(d.toLocaleString('en-US',{month:'short', year:'2-digit'}));
+      const m = d.getMonth(), y = d.getFullYear();
+      expCounts.push(data.filter(p=>{
+        const created = parseDateSafe(p.createdAt);
+        return p.mode==='exp' && created && created.getMonth()===m && created.getFullYear()===y;
+      }).length);
+      impCounts.push(data.filter(p=>{
+        const created = parseDateSafe(p.createdAt);
+        return p.mode==='imp' && created && created.getMonth()===m && created.getFullYear()===y;
+      }).length);
+    }
 
     dashRevenue.innerHTML = `
       <div class="rev-summary-grid">
@@ -2886,27 +2956,59 @@ function renderDashboard(){
             <span class="rev-breakdown-label"><span class="pill pill-imp" style="font-size:9px;padding:1px 6px">IMP</span> Import Revenue</span>
             <span class="rev-breakdown-val imp">${formatMoney(impRevenue)}</span>
           </div>
-          <div class="rev-breakdown-divider"></div>
-          <div class="rev-breakdown-row">
-            <span class="rev-breakdown-label">✅ Closed Files</span>
-            <span class="rev-breakdown-val">${closedCount}</span>
-          </div>
-          <div class="rev-breakdown-row">
-            <span class="rev-breakdown-label">⏸ On Hold</span>
-            <span class="rev-breakdown-val warn">${onHoldCount}</span>
-          </div>
+        </div>
+        <div class="rev-breakdown" style="padding:12px 16px">
+          <div class="rev-breakdown-title">Processes — Last 6 Months</div>
+          <canvas id="dash-chart" style="width:100%;height:120px"></canvas>
         </div>
       </div>
     `;
+
+    // Render Chart.js grouped bar chart
+    requestAnimationFrame(()=>{
+      const ctx = document.getElementById('dash-chart');
+      if(!ctx) return;
+      if(ctx._chartInstance) ctx._chartInstance.destroy();
+      ctx._chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [
+            { label: 'Exports', data: expCounts, backgroundColor: 'rgba(26,79,138,0.75)', borderColor: '#1A4F8A', borderWidth:1 },
+            { label: 'Imports', data: impCounts, backgroundColor: 'rgba(107,63,160,0.75)', borderColor: '#6B3FA0', borderWidth:1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: { size: 10 }, boxWidth: 10 } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { font: { size: 10 }, stepSize: 1, precision: 0 }, grid: { color: 'rgba(0,0,0,.05)' } }
+          }
+        }
+      });
+    });
   }
 }
 function filterAndGo(mode, status){
   $('f-mode').value = mode;
+  // Reset all checkboxes first
+  document.querySelectorAll('#multi-status-dropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
+  const btn = $('multi-status-btn');
   if(status === 'OPEN_MULTI'){
-    // Open = IN PROCESS + NEW + MISC/TRUCKING — store special marker
-    $('f-status').value = 'OPEN_MULTI';
+    // Check New, In Process, Misc/Trucking
+    ['NEW','IN PROCESS','MISC/TRUCKING'].forEach(s=>{
+      const cb = document.querySelector('#multi-status-dropdown input[value="'+s+'"]');
+      if(cb) cb.checked=true;
+    });
+    if(btn) btn.textContent='3 Status(es) ▾';
+  } else if(status){
+    const cb = document.querySelector('#multi-status-dropdown input[value="'+status+'"]');
+    if(cb) cb.checked=true;
+    if(btn) btn.textContent='1 Status(es) ▾';
   } else {
-    $('f-status').value = status;
+    if(btn) btn.textContent='Status ▾';
   }
   showScreen('list');
 }
