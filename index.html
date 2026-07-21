@@ -973,7 +973,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div class="fields-grid cols-2">
         <div class="cost-inline">
           <span class="cost-inline-label">💵 Inland Freight Cost ($)</span>
-          <input class="cost-inline-input" type="text" inputmode="decimal" id="i_inland_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="i_inland_cost" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()">
         </div>
         <div class="field"><label>Chargeable Weight</label><input type="text" id="i_chargeable" placeholder=""></div>
       </div>
@@ -1035,6 +1035,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
         <div class="fee-row"><span class="fee-label">Waiting Time ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_waiting" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
         <div class="fee-row"><span class="fee-label">Magic / Customs ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_customs" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
         <div class="fee-row"><span class="fee-label">Other ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_other" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Inland Freight ($) <span style="font-size:9px;color:var(--text-hint);text-transform:none;letter-spacing:0">· auto (§3)</span></span><input class="fee-input" type="text" id="i_fee_inland_auto" readonly tabindex="-1" placeholder="0.00" style="background:var(--surface2);color:var(--text-muted);cursor:default" title="Copiado de Inland Freight Cost (Seção 3 · Dates & Scheduling). Edite lá."></div>
       </div>
       <div class="fees-total-bar">
         <span class="fees-total-label">Total Payables:</span>
@@ -3347,8 +3348,13 @@ function calcFeesTotal(){
     if(!el) return 0;
     return parseFloat(String(el.value).replace(',', '.')) || 0;
   }
+  // Inland Freight (Section 5) flows into payables automatically as its own line
+  var inland = feeVal('i_inland_cost');
+  var inlandEl = document.getElementById('i_fee_inland_auto');
+  if(inlandEl) inlandEl.value = inland ? inland.toFixed(2) : '';
   var total = feeVal('i_fee_cfs') + feeVal('i_fee_airline') + feeVal('i_fee_storage') +
-              feeVal('i_fee_waiting') + feeVal('i_fee_customs') + feeVal('i_fee_other');
+              feeVal('i_fee_waiting') + feeVal('i_fee_customs') + feeVal('i_fee_other') +
+              inland;
   var el = document.getElementById('i_fees_total');
   if(el) el.textContent = '$ ' + total.toFixed(2).replace(',', '.');
 }
