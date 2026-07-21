@@ -166,6 +166,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent-mid);background:#fff;}
 .field textarea{resize:vertical;min-height:56px;}
 .field input[readonly]{background:var(--surface2);color:var(--text-muted);cursor:default;}
+.cm-type-opt{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text);white-space:nowrap;}
+.cm-type-opt input[type=checkbox]{width:15px;height:15px;min-width:15px;flex:0 0 15px;margin:0;accent-color:var(--accent);cursor:pointer;}
 .field input.auto-calc{background:#F0F8F0;border-color:#A8D0B0;}
 .auto-resize{overflow:hidden;resize:none;min-height:80px;}
 .toggle-group{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--bg);}
@@ -305,7 +307,95 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 .fees-total-bar{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:10px 14px;background:var(--imp-light);border:1px solid var(--imp-border);border-radius:3px;}
 .fees-total-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);}
 .fees-total-value{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:var(--imp);}
+/* ══════════════════════════════════════════════════════
+   DASHBOARD VISUAL REFRESH — scoped to #screen-dash only.
+   Pure presentation. Remove this block to revert entirely.
+   ══════════════════════════════════════════════════════ */
+#screen-dash{
+  --dash-blue:#3A6FC4; --dash-purple:#7B54C9;
+  --dash-radius:20px; --dash-radius-sm:16px;
+  --dash-shadow:0 8px 28px rgba(60,50,110,.08);
+  --dash-shadow-hover:0 14px 38px rgba(60,50,110,.16);
+  background:
+    radial-gradient(1200px 480px at 85% -8%, rgba(123,84,201,.10), transparent 60%),
+    radial-gradient(1000px 420px at -5% 0%, rgba(58,111,196,.09), transparent 55%);
+  border-radius:24px;
+  padding:28px;
+  max-width:1160px;
+}
+#screen-dash .dash-grid{gap:16px;}
+
+/* KPI cards — soft, rounded, layered depth */
+#screen-dash .dash-card{
+  border:none;
+  border-radius:var(--dash-radius-sm);
+  background:var(--surface);
+  box-shadow:var(--dash-shadow);
+  padding:18px 20px 20px;
+  position:relative;
+  overflow:hidden;
+}
+#screen-dash .dash-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:4px;
+  background:var(--text-hint);opacity:.85;
+}
+/* per-metric accent stripe (order: Total, Open, Exports, Imports, Closed, On Hold) */
+#screen-dash .dash-grid>.dash-card:nth-child(1)::before{background:linear-gradient(90deg,var(--dash-blue),var(--dash-purple));}
+#screen-dash .dash-grid>.dash-card:nth-child(2)::before{background:#E8A000;}
+#screen-dash .dash-grid>.dash-card:nth-child(3)::before{background:var(--dash-blue);}
+#screen-dash .dash-grid>.dash-card:nth-child(4)::before{background:var(--dash-purple);}
+#screen-dash .dash-grid>.dash-card:nth-child(5)::before{background:var(--success);}
+#screen-dash .dash-grid>.dash-card:nth-child(6)::before{background:var(--onhold);}
+#screen-dash .dash-card:not(.no-click):hover{
+  transform:translateY(-3px);
+  box-shadow:var(--dash-shadow-hover);
+  border:none;
+}
+#screen-dash .dash-card.no-click:hover{transform:none;box-shadow:var(--dash-shadow);}
+#screen-dash .dash-card-value{font-size:30px;letter-spacing:-.03em;}
+#screen-dash .dash-card-badge{border:none;background:var(--surface2);}
+
+/* Revenue hero — gradient card that ties EXP(blue) + IMP(purple) together */
+#screen-dash .rev-main-card{
+  border:none;border-radius:var(--dash-radius);
+  background:linear-gradient(135deg,var(--dash-blue) 0%,var(--dash-purple) 100%);
+  box-shadow:0 12px 32px rgba(90,60,160,.24);
+  color:#fff;padding:22px 24px;
+}
+#screen-dash .rev-main-card.profit{
+  background:linear-gradient(135deg,#1F8A5B 0%,#0FB07E 100%);
+  box-shadow:0 12px 32px rgba(20,120,80,.22);
+}
+#screen-dash .rev-main-label{color:rgba(255,255,255,.82);}
+#screen-dash .rev-main-value,
+#screen-dash .rev-main-value.profit{color:#fff;font-size:34px;}
+#screen-dash .rev-main-sub{color:rgba(255,255,255,.85);}
+#screen-dash .rev-main-sub strong{color:#fff;}
+
+/* Breakdown + chart cards — soft white, rounded */
+#screen-dash .rev-breakdown{
+  border:none;border-radius:var(--dash-radius-sm);
+  background:var(--surface);box-shadow:var(--dash-shadow);
+}
+
+/* Alerts + Recent panels — floating, rounded */
+#screen-dash .dash-panel{
+  border:none;border-radius:var(--dash-radius);
+  background:var(--surface);box-shadow:var(--dash-shadow);
+  padding:20px 22px;
+}
+#screen-dash .dash-section-title{font-size:15px;}
+#screen-dash .alert-item{border-radius:12px;}
+#screen-dash .recent-table tbody tr:hover{background:rgba(123,84,201,.06);}
+
+/* Header — a touch more presence */
+#screen-dash>div:first-child>div:first-child{font-size:24px;}
+
+@media(max-width:780px){
+  #screen-dash{padding:16px;border-radius:16px;}
+}
 @media print{.app-nav,.form-actions,.modal-overlay{display:none!important;}.screen{padding:8px;}.section{break-inside:avoid;}}
+
 @media(max-width:780px){
   .dash-grid{grid-template-columns:repeat(3,1fr);}
   .dash-two-col{grid-template-columns:1fr;}
@@ -346,23 +436,25 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <div class="modal-title">🏢 Company Register</div>
     <div class="fields-grid cols-2" style="margin-bottom:10px">
       <div class="field"><label>Company Name</label><input type="text" id="cm_name" placeholder="e.g. DHL Supply Chain"></div>
-      <div class="field"><label>Type</label>
-        <select id="cm_type">
-          <option value="shipper">Shipper</option>
-          <option value="consignee">Consignee</option>
-          <option value="trucker">Trucker</option>
-          <option value="agent">Agent</option>
-          <option value="broker">Customs Broker</option>
-          <option value="airline">Airline</option>
-        </select>
+      <div class="field"><label>Type <span style="color:var(--text-hint);font-weight:400;text-transform:none;letter-spacing:0">(marque todos que se aplicam)</span></label>
+        <div id="cm_types" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;padding:6px 2px;">
+          <label class="cm-type-opt"><input type="checkbox" value="shipper"><span>Shipper</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="consignee"><span>Consignee</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="trucker"><span>Trucker</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="agent"><span>Agent</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="broker"><span>Customs Broker</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="airline"><span>Airline</span></label>
+        </div>
       </div>
     </div>
+    <div class="field" style="margin-bottom:10px"><label>Address</label><textarea id="cm_address" placeholder="Street, City, State, ZIP, Country" style="min-height:60px;width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;resize:vertical;"></textarea></div>
     <div class="fields-grid cols-2" style="margin-bottom:10px">
       <div class="field"><label>Contact Name</label><input type="text" id="cm_contact" placeholder=""></div>
       <div class="field"><label>Phone</label><input type="text" id="cm_phone" placeholder=""></div>
     </div>
     <div class="field" style="margin-bottom:12px"><label>Notes</label><input type="text" id="cm_notes" placeholder=""></div>
-    <button class="btn btn-primary" onclick="saveCompany()">+ Add Company</button>
+    <input type="hidden" id="cm_edit_id" value="">
+    <button class="btn btn-primary" onclick="saveCompany()" id="cm_save_btn">+ Add Company</button>
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);margin-bottom:8px;">Saved Companies</div>
       <div id="company-list"></div>
@@ -380,14 +472,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   <!-- KPI row -->
   <div class="dash-grid" id="dash-kpis" style="margin-bottom:20px"></div>
 
-  <!-- Revenue section — full width, proprio layout -->
-  <div class="dash-revenue-section" id="dash-revenue-section" style="margin-bottom:20px">
-    <div class="dash-section-title" style="margin-bottom:12px">💰 Revenue Summary</div>
-    <div id="dash-revenue"></div>
-  </div>
-
   <!-- Alerts + Recent side by side -->
-  <div class="dash-two-col">
+  <div class="dash-two-col" style="margin-bottom:20px">
     <div class="dash-panel">
       <div class="dash-section-title">⚠️ Alerts <span id="dash-alert-count" style="font-size:11px;font-weight:400;color:var(--text-hint);margin-left:6px"></span></div>
       <div id="dash-alerts"></div>
@@ -401,6 +487,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       </table>
       </div>
     </div>
+  </div>
+
+  <!-- Revenue section — full width, proprio layout -->
+  <div class="dash-revenue-section" id="dash-revenue-section">
+    <div class="dash-section-title" style="margin-bottom:12px">💰 Revenue Summary</div>
+    <div id="dash-revenue"></div>
   </div>
 </div>
 
@@ -441,6 +533,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
     <input class="filter-input" id="f-date-from" type="text" placeholder="From MM/DD/YYYY" style="width:148px" oninput="renderTable()">
     <input class="filter-input" id="f-date-to" type="text" placeholder="To MM/DD/YYYY" style="width:148px" oninput="renderTable()">
     <button class="clear-filters" onclick="clearFilters()">Clear</button>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-hint);cursor:pointer;white-space:nowrap"><input type="checkbox" id="f-show-closed" onchange="renderTable()"> Show closed</label>
   </div>
   <table class="processes-table">
     <thead>
@@ -732,7 +825,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 
   <div class="form-actions">
     <button class="btn btn-back" onclick="showScreen('list')">← Back to List</button>
-    <button class="btn btn-primary" onclick="saveProcess('exp')">💾 Save Process</button>
+    <button class="btn btn-primary" onclick="saveProcess('exp')">💾 Save</button>
+    <button class="btn btn-primary" onclick="saveProcess('exp',{close:true})">💾 Save & Close</button>
     <button class="btn" onclick="exportPDF('exp')">↓ PDF</button>
     <button class="btn btn-del" onclick="deleteCurrentProcess('exp')">🗑 Delete</button>
   </div>
@@ -794,7 +888,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
       <div class="fields-grid cols-4" style="margin-bottom:10px">
         <div class="field eta-highlight">
           <label style="color:var(--imp);font-weight:700;">📅 Estimated ETA</label>
-          <input type="text" id="i_eta_id" placeholder="MM/DD/YYYY" class="datepick" oninput="syncETA(this.value)">
+          <input type="text" id="i_eta_id" placeholder="MM/DD/YYYY" class="datepick" oninput="syncETA(this.value)" onchange="syncETA(this.value)">
         </div>
         <div class="field"><label>Cargo Type</label>
           <div class="toggle-group">
@@ -864,7 +958,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
         <div class="field"><label>Transfer Date</label><input type="text" id="i_transfer_date" placeholder="MM/DD/YYYY" class="datepick"></div>
         <div class="field eta-highlight">
           <label style="color:var(--imp);font-weight:700;">📅 ETA</label>
-          <input type="text" id="i_eta" placeholder="MM/DD/YYYY" class="datepick" oninput="syncETABack(this.value)">
+          <input type="text" id="i_eta" placeholder="Synced from Section 1" readonly tabindex="-1" style="background:var(--bg);color:var(--text-hint);cursor:default" title="Edited in Section 1 (Identification)">
         </div>
         <div class="field"><label>Last Free Day</label><input type="text" id="i_last_free_day" placeholder="MM/DD/YYYY" class="datepick"></div>
       </div>
@@ -978,7 +1072,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 
   <div class="form-actions">
     <button class="btn btn-back imp" onclick="showScreen('list')">← Back to List</button>
-    <button class="btn btn-primary imp" onclick="saveProcess('imp')">💾 Save Process</button>
+    <button class="btn btn-primary imp" onclick="saveProcess('imp')">💾 Save</button>
+    <button class="btn btn-primary imp" onclick="saveProcess('imp',{close:true})">💾 Save & Close</button>
     <button class="btn" onclick="exportPDF('imp')">↓ PDF</button>
     <button class="btn btn-del" onclick="deleteCurrentProcess('imp')">🗑 Delete</button>
   </div>
@@ -1040,6 +1135,12 @@ const IMP_CHECKLIST=[
 // UTILS
 // ============================================
 function $(id){return document.getElementById(id);}
+
+// ── ETA sync: Section 1 field is the editable home; dates-section field mirrors it ──
+function syncETA(v){
+  var el = document.getElementById('i_eta');
+  if(el) el.value = v;
+}
 
 // ── Monetary input helper ──
 // Accepts both "1234.56" and "1234,56" — normalises to dot, strips non-numeric chars
@@ -1150,7 +1251,12 @@ async function loadFromCloud(){
   companies = (comps || []).map(c => ({
     id: c.id,
     name: c.name,
-    type: c.type,
+    // New: types array. Fallback to legacy single `type` string.
+    types: Array.isArray(c.types) ? c.types
+           : (c.types ? [c.types] : (c.type ? [c.type] : [])),
+    type: c.type, // kept for legacy safety
+    // New: dedicated address column. Fallback to legacy notes-as-address.
+    address: c.address || '',
     contact: c.contact,
     phone: c.phone,
     notes: c.notes
@@ -1479,7 +1585,7 @@ function rowToProcess(r){
    'transferDate','trucker','carrier','cfs','inlandCost','cfsCost','customsBroker',
    'incoterm','ies','feeOther','feeCfs','feeAirline','feeStorage','feeWaiting',
    'feeCustoms','checklist','comments','revenue','profit','createdAt','updatedAt',
-   'declaredValue','htsCode','aesItn'].forEach(k => {
+   'declaredValue','htsCode','aesItn','dgType','lastFreeDay','puFrom','closedAt'].forEach(k => {
     if(r[k] !== null && r[k] !== undefined) src[k] = r[k];
   });
 
@@ -1529,12 +1635,15 @@ function rowToProcess(r){
     customsBroker: src.customsBroker || src.customs_broker || '',
     incoterm:      src.incoterm    || '',
     ies:           src.ies         || 'yes',
+    lastFreeDay:   src.lastFreeDay || src.last_free_day || '',
+    puFrom:        src.puFrom      || src.pu_from       || '',
+    closedAt:      src.closedAt    || src.closed_at     || '',
     feeOther:      src.feeOther    || src.fee_other    || '',
-    feeCfs:        src.feeCfs      || '',
-    feeAirline:    src.feeAirline  || '',
-    feeStorage:    src.feeStorage  || '',
-    feeWaiting:    src.feeWaiting  || '',
-    feeCustoms:    src.feeCustoms  || '',
+    feeCfs:        src.feeCfs      || src.fee_cfs      || '',
+    feeAirline:    src.feeAirline  || src.fee_airline  || '',
+    feeStorage:    src.feeStorage  || src.fee_storage  || '',
+    feeWaiting:    src.feeWaiting  || src.fee_waiting  || '',
+    feeCustoms:    src.feeCustoms  || src.fee_customs  || '',
     checklist:     normalizeChecklist(src.checklist, mode),
     comments:      src.comments    || '',
     agentUpdate:   r.latest_update_to_agent || src.agentUpdate || src.agent_update || '',
@@ -1575,7 +1684,9 @@ function processToRow(p) {
   data[pfx + 'agent'] = p.agent || '';
   data[pfx + 'reference'] = p.reference || '';
   data[pfx + 'dg'] = p.dg || 'non-dg';
+  data[pfx + 'dg_type'] = p.dgType || 'pax';
   data[pfx + 'dg_desc'] = p.dgDesc || '';
+  data['closed_at'] = p.closedAt || '';
   data[pfx + 'shipper'] = p.shipper || '';
   data[pfx + 'shipper_address'] = p.shipperAddress || '';
   data[pfx + 'consignee'] = p.consignee || '';
@@ -1613,6 +1724,8 @@ function processToRow(p) {
     data['i_ies'] = p.ies || 'yes';
     data['i_eta'] = p.eta || '';
     data['i_customs_broker'] = p.customsBroker || '';
+    data['i_last_free_day'] = p.lastFreeDay || '';
+    data['i_pu_from'] = p.puFrom || '';
     data['i_pu_date'] = p.puDate || '';
     data['i_transfer_date'] = p.transferDate || '';
     data['i_trucker'] = p.trucker || '';
@@ -1698,7 +1811,6 @@ async function saveProcessCloud(p){
       if(saved.id && currentEdit && currentEdit.id === p.id) currentEdit.id = saved.id;
     }
     setSync('ok','☁ Saved');
-    showSaveToast();
     saveLocal();
     if(typeof renderDashboard === 'function') renderDashboard();
     }
@@ -1713,7 +1825,13 @@ async function deleteProcessCloud(id){
 
 async function saveCompanyCloud(c){
   if(!cloudReady){saveLocalCompanies();return;}
-  const {error} = await supa.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes});
+  const {error} = await supa.from('companies').upsert({
+    id:c.id, name:c.name,
+    types:c.types||[],
+    type:(c.types&&c.types[0])||c.type||null, // keep legacy column in sync
+    address:c.address||'',
+    contact:c.contact, phone:c.phone, notes:c.notes
+  });
   if(error)console.error('Company save error:',error);
 }
 
@@ -1730,7 +1848,13 @@ function loadLocal(){
     const p = localStorage.getItem('afm_processes');
     if(p)processes = JSON.parse(p);
     const c = localStorage.getItem('afm_companies');
-    if(c)companies = JSON.parse(c);
+    if(c){
+      companies = JSON.parse(c).map(x=>({
+        ...x,
+        types: Array.isArray(x.types) ? x.types : (x.type?[x.type]:[]),
+        address: x.address || ''
+      }));
+    }
   }catch(e){console.error(e);}
   renderTable();
   renderCompanyList();
@@ -1761,7 +1885,13 @@ async function migrateLocalToSupabase(){
       await supa.from('processes').upsert(row);
     }
     for(const comp of c){
-      await supa.from('companies').upsert({id:comp.id,name:comp.name,type:comp.type,contact:comp.contact,phone:comp.phone,notes:comp.notes});
+      await supa.from('companies').upsert({
+        id:comp.id, name:comp.name,
+        types:comp.types||(comp.type?[comp.type]:[]),
+        type:(comp.types&&comp.types[0])||comp.type||null,
+        address:comp.address||'',
+        contact:comp.contact, phone:comp.phone, notes:comp.notes
+      });
     }
     localStorage.removeItem('afm_processes');
     localStorage.removeItem('afm_companies');
@@ -1800,33 +1930,75 @@ function showScreen(s){
 // ============================================
 // COMPANIES
 // ============================================
-function openCompanies(){$('modal-companies').classList.add('open');renderCompanyList();}
+function openCompanies(){$('modal-companies').classList.add('open');resetCompanyForm();renderCompanyList();}
 function closeCompanies(){$('modal-companies').classList.remove('open');}
 async function saveCompany(){
   const name = $('cm_name').value.trim();
   if(!name){alert('Enter a company name.');return;}
-  const c = {
-    id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    name, type:$('cm_type').value,
-    contact:$('cm_contact').value.trim(),
-    phone:$('cm_phone').value.trim(),
-    notes:$('cm_notes').value.trim()
-  };
-  companies.push(c);
-  await saveCompanyCloud(c);
+  const types = Array.from(document.querySelectorAll('#cm_types input[type=checkbox]:checked')).map(cb=>cb.value);
+  if(!types.length){alert('Select at least one type.');return;}
+  const editId = $('cm_edit_id').value;
+  if(editId){
+    // Editing an existing company
+    const c = companies.find(x=>x.id===editId);
+    if(c){
+      c.name = name;
+      c.types = types;
+      c.type = types[0];
+      c.address = $('cm_address').value.trim();
+      c.contact = $('cm_contact').value.trim();
+      c.phone = $('cm_phone').value.trim();
+      c.notes = $('cm_notes').value.trim();
+      await saveCompanyCloud(c);
+    }
+  } else {
+    const c = {
+      id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      name, types, type:types[0],
+      address:$('cm_address').value.trim(),
+      contact:$('cm_contact').value.trim(),
+      phone:$('cm_phone').value.trim(),
+      notes:$('cm_notes').value.trim()
+    };
+    companies.push(c);
+    await saveCompanyCloud(c);
+  }
   saveLocalCompanies();
-  ['cm_name','cm_contact','cm_phone','cm_notes'].forEach(id=>$(id).value='');
+  resetCompanyForm();
   renderCompanyList();
+}
+function resetCompanyForm(){
+  ['cm_name','cm_address','cm_contact','cm_phone','cm_notes','cm_edit_id'].forEach(id=>{ if($(id))$(id).value=''; });
+  document.querySelectorAll('#cm_types input[type=checkbox]').forEach(cb=>cb.checked=false);
+  if($('cm_save_btn')) $('cm_save_btn').textContent='+ Add Company';
+}
+function editCompany(id){
+  const c = companies.find(x=>x.id===id);
+  if(!c) return;
+  $('cm_name').value = c.name||'';
+  $('cm_address').value = c.address||'';
+  $('cm_contact').value = c.contact||'';
+  $('cm_phone').value = c.phone||'';
+  $('cm_notes').value = c.notes||'';
+  $('cm_edit_id').value = c.id;
+  const tset = new Set(c.types && c.types.length ? c.types : (c.type?[c.type]:[]));
+  document.querySelectorAll('#cm_types input[type=checkbox]').forEach(cb=>{ cb.checked = tset.has(cb.value); });
+  if($('cm_save_btn')) $('cm_save_btn').textContent='✓ Save Changes';
 }
 function renderCompanyList(){
   const wrap = $('company-list');
   if(!companies.length){wrap.innerHTML='<div style="font-size:11px;color:var(--text-hint);text-align:center;padding:8px;">No companies yet.</div>';return;}
-  wrap.innerHTML = companies.map(c=>`
+  wrap.innerHTML = companies.map(c=>{
+    const tlist = (c.types && c.types.length) ? c.types : (c.type?[c.type]:[]);
+    const badges = tlist.map(t=>`<span class="cli-type">${escapeHtml(t)}</span>`).join(' ');
+    return `
     <div class="company-list-item">
       <span class="cli-name">${escapeHtml(c.name)}</span>
-      <span class="cli-type">${c.type}</span>
-      <button class="cli-del" onclick="deleteCompany('${c.id}')">✕</button>
-    </div>`).join('');
+      ${badges}
+      <button class="cli-del" onclick="editCompany('${c.id}')" title="Edit" style="margin-left:auto">✎</button>
+      <button class="cli-del" onclick="deleteCompany('${c.id}')" title="Delete">✕</button>
+    </div>`;
+  }).join('');
 }
 async function deleteCompany(id){
   if(!confirm('Delete this company?'))return;
@@ -1844,28 +2016,37 @@ function acFilter(inputId,type){
   const list = $('ac_'+inputId);
   const q = inp.value.trim().toLowerCase();
   if(!q){list.style.display='none';return;}
-  const matches = companies.filter(c=>c.name.toLowerCase().includes(q) && (type==='any'||c.type===type)).slice(0,6);
+  const matches = companies.filter(c=>{
+    if(!c.name.toLowerCase().includes(q)) return false;
+    if(type==='any') return true;
+    const tlist = (c.types && c.types.length) ? c.types : (c.type?[c.type]:[]);
+    return tlist.includes(type);
+  }).slice(0,6);
   if(!matches.length){list.style.display='none';return;}
-  list.innerHTML = matches.map(c=>`
+  list.innerHTML = matches.map(c=>{
+    const tlist = (c.types && c.types.length) ? c.types : (c.type?[c.type]:[]);
+    return `
     <div class="ac-item" onclick="acPick('${inputId}','${escapeAttr(c.name)}','${c.id}')">
       <span class="ac-item-name">${escapeHtml(c.name)}</span>
-      <span class="ac-item-type">${c.type}</span>
-    </div>`).join('');
+      <span class="ac-item-type">${escapeHtml(tlist.join(', '))}</span>
+    </div>`;
+  }).join('');
   list.style.display='block';
 }
 function acPick(inputId,name,companyId){
   $(inputId).value = name;
   $('ac_'+inputId).style.display='none';
-  // Auto-fill address
+  // Auto-fill address — only for shipper/consignee fields, only when target is empty
   const c = companies.find(x=>x.id===companyId);
   if(c){
     const addrMap = {
       'e_shipper':'e_shipper_address','e_consignee':'e_consignee_address',
       'i_shipper':'i_shipper_address','i_consignee':'i_consignee_address'
     };
-    if(addrMap[inputId] && c.notes){
+    const addr = c.address || c.notes || ''; // dedicated address; legacy fallback to notes
+    if(addrMap[inputId] && addr){
       const addrEl = $(addrMap[inputId]);
-      if(addrEl && !addrEl.value.trim()) addrEl.value = c.notes;
+      if(addrEl && !addrEl.value.trim()) addrEl.value = addr;
     }
   }
 }
@@ -2299,7 +2480,8 @@ function loadImport(p){
   recalcTotals('i');
 }
 
-async function saveProcess(mode){
+async function saveProcess(mode, opts){
+  opts = opts || {}; // {silent: no toast (auto-save), close: return to list after saving}
   // Safe field readers — return '' or 0 if element doesn't exist in this form
   function val(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
   function valNum(id){ var el=document.getElementById(id); if(!el) return 0; var v=String(el.value).replace(',','.'); return parseFloat(v)||0; }
@@ -2338,9 +2520,11 @@ async function saveProcess(mode){
     agentUpdate:      val(prefix+'_agent_update'),
     revenue:          valNum(prefix+'_revenue'),
     profit:           valNum(prefix+'_profit'),
+    closedAt:         existing ? (existing.closedAt || '') : '',
     createdAt:        existing ? existing.createdAt : new Date().toISOString(),
     updatedAt:        new Date().toISOString()
   };
+  applyClosedAt(p);
 
   if(mode === 'exp'){
     p.reference     = val('e_reference');
@@ -2390,8 +2574,8 @@ async function saveProcess(mode){
   currentEdit.id = id;
   await saveProcessCloud(p);
   saveLocal();
-  showSaveToast();
-  showScreen('list');
+  if(!opts.silent) showSaveToast();
+  if(opts.close) showScreen('list');
 }
 
 async function deleteCurrentProcess(mode){
@@ -2416,23 +2600,46 @@ async function deleteRowProcess(id,e){
 // ============================================
 // DAYS OPEN
 // ============================================
+function isFrozenStatus(p){
+  const s = String(p.status||'').toUpperCase();
+  return s==='CLOSED' || s==='CANCELLED';
+}
+// Sets/clears closedAt when status crosses the closed boundary
+function applyClosedAt(p){
+  if(isFrozenStatus(p)){
+    if(!p.closedAt) p.closedAt = new Date().toISOString();
+  } else {
+    p.closedAt = '';
+  }
+}
 function daysOpen(p){
-  if(p.status==='CLOSED'||p.status==='CANCELLED')return null;
   const created = p.createdAt ? new Date(p.createdAt) : null;
   if(!created)return null;
+  if(isFrozenStatus(p)){
+    // Frozen: closedAt − createdAt (legacy files without closedAt: approximate with updatedAt)
+    const end = p.closedAt ? new Date(p.closedAt) : (p.updatedAt ? new Date(p.updatedAt) : null);
+    if(!end || isNaN(end)) return null;
+    return Math.max(0, Math.floor((end.getTime()-created.getTime())/(1000*60*60*24)));
+  }
   const diff = Math.floor((Date.now()-created.getTime())/(1000*60*60*24));
   return diff;
 }
 function daysOpenText(p){
   const d = daysOpen(p);
-  if(d===null) return p.status==='CLOSED'?'✓ Closed':p.status==='CANCELLED'?'✗ Cancelled':'';
+  if(isFrozenStatus(p)){
+    const label = p.status==='CANCELLED'?'✗ Cancelled':'✓ Closed';
+    return d===null ? label : label+' · '+d+' days';
+  }
+  if(d===null) return '';
   return d+' days open';
 }
 function daysOpenBadge(p){
   const d = daysOpen(p);
-  if(d===null){
-    return '<span class="days-badge days-frozen">'+(p.status==='CLOSED'?'closed':'cancelled')+'</span>';
+  if(isFrozenStatus(p)){
+    const label = p.status==='CANCELLED'?'cancelled':'closed';
+    return '<span class="days-badge days-frozen">'+(d===null?label:d+'d · '+label)+'</span>';
   }
+  if(d===null) return '';
   const cls = d<=7?'days-fresh':d<=30?'days-mid':'days-old';
   return '<span class="days-badge '+cls+'">'+d+'d</span>';
 }
@@ -2473,9 +2680,13 @@ function renderTable(){
   const btn = $('multi-status-btn');
   if(btn) btn.textContent = checkedStatuses.length ? checkedStatuses.length+' Status(es) ▾' : 'Status ▾';
 
+  const showClosed = $('f-show-closed') ? $('f-show-closed').checked : true;
+
   let rows = processes.filter(p=>{
     if(modeF && p.mode!==modeF)return false;
     if(checkedStatuses.length && !checkedStatuses.includes(p.status||'NEW'))return false;
+    // Default view hides closed/cancelled — unless toggled on or explicitly selected in the status filter
+    if(!checkedStatuses.length && !showClosed && !isOpenProcess(p))return false;
     if(search){
       // Search all Section 1 identification fields (both exp and imp)
       const hay = [p.fileNumber,p.mawb,p.hawb,p.airline,p.origin,p.dest,p.agent,p.reference,p.shipper,p.consignee].join(' ').toLowerCase();
@@ -2546,6 +2757,7 @@ function clearFilters(){
   $('f-mode').value='';
   document.querySelectorAll('#multi-status-dropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
   const btn = $('multi-status-btn'); if(btn) btn.textContent='Status ▾';
+  if($('f-show-closed')) $('f-show-closed').checked=false;
   renderTable();
 }
 function toggleStatusDropdown(){
@@ -2592,7 +2804,11 @@ function getDaysOpen(p){
   const status = String(p.status || '').toUpperCase();
 
   if(status === 'CLOSED' || status === 'CANCELLED'){
-    return 0;
+    // Frozen: same logic as daysOpen() — closedAt − createdAt, legacy fallback updatedAt
+    const created = parseDateSafe(p.createdAt);
+    const end = parseDateSafe(p.closedAt || p.updatedAt);
+    if(!created || !end) return 0;
+    return Math.max(0, Math.floor((end.getTime() - created.getTime()) / 86400000));
   }
 
   const baseDate = parseDateSafe(p.createdAt || p.updatedAt);
@@ -2719,22 +2935,34 @@ function renderDashboard(){
     // "This month" counts — processes created in current calendar month
     const nowM = new Date(); const curY = nowM.getFullYear(), curMo = nowM.getMonth();
     function thisMonth(arr){ return arr.filter(p=>{ const d=parseDateSafe(p.createdAt); return d&&d.getFullYear()===curY&&d.getMonth()===curMo; }).length; }
+    const onHoldList = data.filter(p => String(p.status || '').toUpperCase() === 'ON HOLD');
     const tmTotal    = thisMonth(data);
     const tmOpen     = thisMonth(openProcesses);
     const tmExports  = thisMonth(data.filter(p=>p.mode==='exp'));
     const tmImports  = thisMonth(data.filter(p=>p.mode==='imp'));
     const tmClosed   = thisMonth(data.filter(p=>String(p.status||'').toUpperCase()==='CLOSED'));
+    const tmOnHold   = thisMonth(onHoldList);
 
-    // Mocked trend values (vs last month)
+    // Real trend values: processes created this month vs last month
+    const lmDate = new Date(curY, curMo - 1, 1);
+    const lmY = lmDate.getFullYear(), lmMo = lmDate.getMonth();
+    function lastMonth(arr){ return arr.filter(p=>{ const d=parseDateSafe(p.createdAt); return d&&d.getFullYear()===lmY&&d.getMonth()===lmMo; }).length; }
+    function calcTrend(cur, prev){
+      if(!prev) return { pct: null, dir: 'neutral' };
+      const pct = Math.round(((cur - prev) / prev) * 100);
+      if(pct === 0) return { pct: 0, dir: 'neutral' };
+      return { pct: Math.abs(pct), dir: pct > 0 ? 'up' : 'down' };
+    }
     const trends = {
-      total:   { pct: 12,  dir: 'up'     },
-      open:    { pct: 5,   dir: 'down'   },
-      exports: { pct: 8,   dir: 'up'     },
-      imports: { pct: 18,  dir: 'up'     },
-      closed:  { pct: 3,   dir: 'up'     },
-      onhold:  { pct: null, dir: 'neutral'}
+      total:   calcTrend(tmTotal,   lastMonth(data)),
+      open:    calcTrend(tmOpen,    lastMonth(openProcesses)),
+      exports: calcTrend(tmExports, lastMonth(data.filter(p=>p.mode==='exp'))),
+      imports: calcTrend(tmImports, lastMonth(data.filter(p=>p.mode==='imp'))),
+      closed:  calcTrend(tmClosed,  lastMonth(data.filter(p=>String(p.status||'').toUpperCase()==='CLOSED'))),
+      onhold:  calcTrend(tmOnHold,  lastMonth(onHoldList))
     };
     function trendHtml(t){
+      if(t.pct === null) return `<div class="dash-card-trend neutral">— · vs last month</div>`;
       if(t.dir==='neutral') return `<div class="dash-card-trend neutral">— No change · vs last month</div>`;
       const arrow = t.dir==='up' ? '▲' : '▼';
       return `<div class="dash-card-trend ${t.dir}">${arrow} ${t.pct}% · vs last month</div>`;
@@ -2779,7 +3007,7 @@ function renderDashboard(){
       <div class="dash-card no-click" style="${onHoldCount > 0 ? 'border-color:#E8C060;background:var(--warn-bg)' : ''}">
         <div class="dash-card-label">On Hold</div>
         <div class="dash-card-value ${onHoldCount > 0 ? 'warn' : ''}">${onHoldCount}</div>
-        <div class="dash-card-badge">This month · ${onHoldCount}</div>
+        <div class="dash-card-badge">This month · ${tmOnHold}</div>
         ${trendHtml(trends.onhold)}
       </div>
     `;
@@ -2810,15 +3038,16 @@ function renderDashboard(){
     return Math.round((d - today) / 86400000);
   }
 
-  // ── 1. Processos abertos há 7 e 14 dias (baseado em updatedAt ou createdAt)
-  openProcesses.forEach(p => {
+  // ── 1. Processos parados (só NEW e IN PROCESS — QUOTE/ON HOLD/MISC ficar parado é normal)
+  const STALE_STATUSES = ['NEW','IN PROCESS'];
+  openProcesses.filter(p => STALE_STATUSES.includes(String(p.status||'').toUpperCase())).forEach(p => {
     const fn = p.fileNumber || '—';
     const lastUpdate = parseAlertDate(p.updatedAt || p.createdAt);
     if(!lastUpdate) return;
     const daysSince = Math.round((today - lastUpdate) / 86400000);
-    if(daysSince >= 14){
+    if(daysSince >= 21){
       alerts.push({type:'danger', icon:'🔥', text:`${fn} — no updates for ${daysSince} days`, id: p.id, priority: 1});
-    } else if(daysSince >= 7){
+    } else if(daysSince >= 10){
       alerts.push({type:'warn', icon:'⏳', text:`${fn} — no updates for ${daysSince} days`, id: p.id, priority: 2});
     }
   });
@@ -2832,7 +3061,7 @@ function renderDashboard(){
     }
   });
 
-  // ── 3. ETA próxima (IMP: dentro de 5 dias)
+  // ── 3. ETA próxima (IMP: dentro de 3 dias)
   openProcesses.filter(p => p.mode === 'imp' && p.eta).forEach(p => {
     const fn = p.fileNumber || '—';
     const diff = daysDiff(p.eta);
@@ -2843,8 +3072,6 @@ function renderDashboard(){
       alerts.push({type:'danger', icon:'🛬', text:`${fn} — ETA tomorrow`, id: p.id, priority: 1});
     } else if(diff <= 3){
       alerts.push({type:'warn', icon:'🛬', text:`${fn} — ETA in ${diff} days`, id: p.id, priority: 2});
-    } else if(diff <= 5){
-      alerts.push({type:'info', icon:'🛬', text:`${fn} — ETA in ${diff} days`, id: p.id, priority: 3});
     }
   });
 
@@ -2862,28 +3089,38 @@ function renderDashboard(){
     }
   });
 
-  // ── 5. Processo fechado sem revenue
-  const closedNoRevenue = data.filter(p =>
-    String(p.status||'').toUpperCase() === 'CLOSED' &&
-    (!p.revenue || Number(p.revenue) === 0)
-  );
-  closedNoRevenue.slice(0,5).forEach(p => {
-    alerts.push({type:'info', icon:'💰', text:`${p.fileNumber||'—'} — closed with no revenue`, id: p.id, priority: 4});
-  });
-  if(closedNoRevenue.length > 5){
-    alerts.push({type:'info', icon:'💰', text:`+${closedNoRevenue.length - 5} more closed files with no revenue`, id: null, priority: 4});
-  }
+  // ── (Removido) "Fechado sem revenue" saiu do painel de alertas — é tarefa de
+  //     faturamento, não urgência do dia. Não muda ao longo do dia.
 
-  // Sort by priority then text
-  alerts.sort((a,b) => (a.priority - b.priority) || a.text.localeCompare(b.text));
+  // ── Dedup: manter só o alerta mais crítico por processo, com contador "+N" dos demais
+  alerts.sort((a,b) => (a.priority - b.priority) || String(a.text).localeCompare(String(b.text)));
+  const seen = new Map();
+  const extraCount = new Map();
+  const deduped = [];
+  alerts.forEach(a => {
+    if(!a.id){ deduped.push(a); return; } // alertas sem processo passam direto
+    if(!seen.has(a.id)){
+      seen.set(a.id, a);
+      deduped.push(a);
+    } else {
+      extraCount.set(a.id, (extraCount.get(a.id)||0) + 1);
+    }
+  });
+  // Anexa "(+N)" ao alerta mantido quando o processo tinha outros
+  deduped.forEach(a => {
+    if(a.id && extraCount.get(a.id)){
+      a.text = `${a.text} (+${extraCount.get(a.id)})`;
+    }
+  });
+  const finalAlerts = deduped;
 
 
   const alertCountEl = document.getElementById('dash-alert-count');
-  if(alertCountEl) alertCountEl.textContent = alerts.length ? `(${alerts.length})` : '';
-  if(alerts.length === 0){
+  if(alertCountEl) alertCountEl.textContent = finalAlerts.length ? `(${finalAlerts.length})` : '';
+  if(finalAlerts.length === 0){
     dashAlerts.innerHTML = '<div class="no-alerts">✅ All clear — no alerts right now.</div>';
   } else {
-    dashAlerts.innerHTML = alerts.map(a => {
+    dashAlerts.innerHTML = finalAlerts.map(a => {
       const click = a.id
         ? `onclick="editProcess('${a.id}')" style="cursor:pointer"`
         : '';
@@ -2948,6 +3185,17 @@ function renderDashboard(){
     const totalProfit  = data.reduce((sum,p) => sum + Number(p.profit  || 0), 0);
     const expRevenue   = data.filter(p=>p.mode==='exp').reduce((sum,p) => sum + Number(p.revenue || 0), 0);
     const impRevenue   = data.filter(p=>p.mode==='imp').reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const expProfit    = data.filter(p=>p.mode==='exp').reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const impProfit    = data.filter(p=>p.mode==='imp').reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const expMargin    = expRevenue > 0 ? ((expProfit / expRevenue) * 100).toFixed(1) : '0.0';
+    const impMargin    = impRevenue > 0 ? ((impProfit / impRevenue) * 100).toFixed(1) : '0.0';
+    // Current-month figures (by createdAt, consistent with the rest of the dashboard)
+    const nowRev = new Date(); const revY = nowRev.getFullYear(), revMo = nowRev.getMonth();
+    function inCurMonth(p){ const d = parseDateSafe(p.createdAt); return d && d.getFullYear()===revY && d.getMonth()===revMo; }
+    const monthData    = data.filter(inCurMonth);
+    const monthRevenue = monthData.reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const monthProfit  = monthData.reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const monthMargin  = monthRevenue > 0 ? ((monthProfit / monthRevenue) * 100).toFixed(1) : '0.0';
     const margin       = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
 
     // Last 6 months labels and counts
@@ -2972,31 +3220,31 @@ function renderDashboard(){
     dashRevenue.innerHTML = `
       <div class="rev-summary-grid">
         <div class="rev-main-card">
-          <div class="rev-main-label">Total Revenue</div>
-          <div class="rev-main-value">${formatMoney(totalRevenue)}</div>
-          <div class="rev-main-sub">All files combined</div>
+          <div class="rev-main-label">Revenue · This Month</div>
+          <div class="rev-main-value">${formatMoney(monthRevenue)}</div>
+          <div class="rev-main-sub">All time: ${formatMoney(totalRevenue)}</div>
         </div>
         <div class="rev-main-card profit">
-          <div class="rev-main-label">Total Profit</div>
-          <div class="rev-main-value profit">${formatMoney(totalProfit)}</div>
-          <div class="rev-main-sub">Margin: <strong>${margin}%</strong></div>
+          <div class="rev-main-label">Profit · This Month</div>
+          <div class="rev-main-value profit">${formatMoney(monthProfit)}</div>
+          <div class="rev-main-sub">Margin: <strong>${monthMargin}%</strong> · All time: ${formatMoney(totalProfit)} (${margin}%)</div>
         </div>
         <div class="rev-breakdown">
-          <div class="rev-breakdown-title">Financial Breakdown</div>
+          <div class="rev-breakdown-title">Financial Breakdown · All Time</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
             <div style="padding-right:12px;border-right:1px solid var(--border)">
               <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="pill pill-exp" style="font-size:9px;padding:1px 6px">EXP</span> Export</div>
-              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val accent">$18,450.00</span></div>
-              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val accent">$4,230.00</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val accent">${formatMoney(expRevenue)}</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val accent">${formatMoney(expProfit)}</span></div>
               <div style="height:1px;background:var(--border);margin:6px 0"></div>
-              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val accent" style="font-size:15px;font-weight:600">22.9%</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val accent" style="font-size:15px;font-weight:600">${expMargin}%</span></div>
             </div>
             <div style="padding-left:12px">
               <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="pill pill-imp" style="font-size:9px;padding:1px 6px">IMP</span> Import</div>
-              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val imp">$12,780.00</span></div>
-              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val imp">$2,810.00</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val imp">${formatMoney(impRevenue)}</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val imp">${formatMoney(impProfit)}</span></div>
               <div style="height:1px;background:var(--border);margin:6px 0"></div>
-              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val imp" style="font-size:15px;font-weight:600">22.0%</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val imp" style="font-size:15px;font-weight:600">${impMargin}%</span></div>
             </div>
           </div>
         </div>
@@ -3036,6 +3284,8 @@ function renderDashboard(){
 }
 function filterAndGo(mode, status){
   $('f-mode').value = mode;
+  // Cards without an explicit status filter count everything (incl. closed) — keep the list consistent
+  if($('f-show-closed')) $('f-show-closed').checked = !status;
   // Reset all checkboxes first
   document.querySelectorAll('#multi-status-dropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
   const btn = $('multi-status-btn');
@@ -3062,25 +3312,43 @@ function filterAndGo(mode, status){
 $('exp-status-select').addEventListener('change',async function(){
   if(!currentEdit.id)return;
   const p = processes.find(x=>x.id===currentEdit.id);
-  if(p){p.status=this.value;p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
+  if(p){p.status=this.value;applyClosedAt(p);p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
 });
 $('imp-status-select').addEventListener('change',async function(){
   if(!currentEdit.id)return;
   const p = processes.find(x=>x.id===currentEdit.id);
-  if(p){p.status=this.value;p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
+  if(p){p.status=this.value;applyClosedAt(p);p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
+});
+
+// ============================================
+// AUTO-SAVE (debounced, existing processes only)
+// ============================================
+// Only fires after the process has been saved once (currentEdit.id set),
+// so a stray keystroke never creates a ghost process.
+function scheduleAutoSave(mode){
+  if(!currentEdit.id) return;
+  clearTimeout(saveTimers[mode]);
+  saveTimers[mode] = setTimeout(function(){ saveProcess(mode, {silent:true}); }, 2500);
+}
+['exp','imp'].forEach(function(m){
+  var scr = document.getElementById('screen-'+m);
+  if(!scr) return;
+  scr.addEventListener('input',  function(){ scheduleAutoSave(m); });
+  scr.addEventListener('change', function(){ scheduleAutoSave(m); });
 });
 
 // ============================================
 // STATION FEES TOTAL
 // ============================================
 function calcFeesTotal(){
-  var total =
-    (parseFloat(document.getElementById('i_fee_cfs')     ? document.getElementById('i_fee_cfs').value     : 0) || 0) +
-    (parseFloat(document.getElementById('i_fee_airline') ? document.getElementById('i_fee_airline').value : 0) || 0) +
-    (parseFloat(document.getElementById('i_fee_storage') ? document.getElementById('i_fee_storage').value : 0) || 0) +
-    (parseFloat(document.getElementById('i_fee_waiting') ? document.getElementById('i_fee_waiting').value : 0) || 0) +
-    (parseFloat(document.getElementById('i_fee_customs') ? document.getElementById('i_fee_customs').value : 0) || 0) +
-    (parseFloat(document.getElementById('i_fee_other')   ? document.getElementById('i_fee_other').value   : 0) || 0);
+  // Comma-safe: accepts "1,5" (pt-BR) as 1.5
+  function feeVal(id){
+    var el = document.getElementById(id);
+    if(!el) return 0;
+    return parseFloat(String(el.value).replace(',', '.')) || 0;
+  }
+  var total = feeVal('i_fee_cfs') + feeVal('i_fee_airline') + feeVal('i_fee_storage') +
+              feeVal('i_fee_waiting') + feeVal('i_fee_customs') + feeVal('i_fee_other');
   var el = document.getElementById('i_fees_total');
   if(el) el.textContent = '$ ' + total.toFixed(2).replace(',', '.');
 }
@@ -3280,11 +3548,19 @@ async function importBackup(ev){
     const data = JSON.parse(text);
     if(!confirm('Replace all current data with backup?'))return;
     processes = data.processes||[];
-    companies = data.companies||[];
+    companies = (data.companies||[]).map(c=>({
+      ...c,
+      types: Array.isArray(c.types) ? c.types : (c.type?[c.type]:[]),
+      address: c.address || ''
+    }));
     if(cloudReady){
       showLoading('Restoring backup to cloud…');
       for(const p of processes){const row=processToRow(p);await supa.from('processes').upsert(row);}
-      for(const c of companies){await supa.from('companies').upsert({id:c.id,name:c.name,type:c.type,contact:c.contact,phone:c.phone,notes:c.notes});}
+      for(const c of companies){await supa.from('companies').upsert({
+        id:c.id, name:c.name,
+        types:c.types||[], type:(c.types&&c.types[0])||c.type||null,
+        address:c.address||'', contact:c.contact, phone:c.phone, notes:c.notes
+      });}
       hideLoading();
     }
     saveLocal();saveLocalCompanies();
