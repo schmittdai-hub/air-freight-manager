@@ -3595,7 +3595,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 // Em outros aparelhos nada muda. Diagnóstico: ?debug=1
 // ============================================
 (function(){
-  const VER='tabfix-v4';
+  const VER='tabfix-v5';
   const ua=navigator.userAgent, plat=navigator.platform, tp=navigator.maxTouchPoints||0;
   const isIPad=/iPad|iPhone/.test(ua)||(/Mac/.test(plat)&&tp>1);
   const DEBUG=/[?&]debug=1/.test(location.search);
@@ -3633,6 +3633,16 @@ window.addEventListener('DOMContentLoaded',async()=>{
     go(document.activeElement&&document.activeElement.matches&&document.activeElement.matches(SEL)?document.activeElement:lastField,e.shiftKey);
   }
   window.addEventListener('keydown',onKey,true);
+  // Enter = próximo campo (Shift+Enter = anterior), só no iPad,
+  // porque o iPad não entrega o Tab ao app. Em caixas de texto
+  // grandes (endereços, notas) o Enter continua pulando linha.
+  window.addEventListener('keydown',e=>{
+    if(!isIPad||e.key!=='Enter'||e.altKey||e.metaKey||e.ctrlKey||e.isComposing) return;
+    const t=e.target;
+    if(!t||!t.matches||!t.matches(SEL)||t.tagName==='TEXTAREA') return;
+    e.preventDefault();
+    go(t,e.shiftKey);
+  },true);
   window.addEventListener('keyup',onKey,true);
   window.addEventListener('focusin',e=>{
     const t=e.target;
