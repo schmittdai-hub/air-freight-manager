@@ -3586,53 +3586,66 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 // ============================================
-// iPad: Tab / Shift+Tab entre campos  (v3 + diagnóstico)
-// O Safari do iPad pula campos com o Tab; aqui o app assume
-// a navegação. Em outros aparelhos nada muda.
-// Diagnóstico: abra o app com ?debug=1 no endereço.
+// iPad: Tab / Shift+Tab entre campos  (v4 + diagnóstico)
+// O Safari do iPad não entrega o Tab ao app e move o foco
+// por conta própria (às vezes para trás). Aqui o app:
+//  1) trata o Tab se ele chegar como keydown ou keyup;
+//  2) corrige saltos de foco feitos pelo teclado (sem toque)
+//     levando para o campo seguinte ao anterior.
+// Em outros aparelhos nada muda. Diagnóstico: ?debug=1
 // ============================================
 (function(){
-  const TABFIX_VER='tabfix-v3';
+  const VER='tabfix-v4';
   const ua=navigator.userAgent, plat=navigator.platform, tp=navigator.maxTouchPoints||0;
   const isIPad=/iPad|iPhone/.test(ua)||(/Mac/.test(plat)&&tp>1);
   const DEBUG=/[?&]debug=1/.test(location.search);
   let box=null;
-  function log(msg){
+  function log(m){
     if(!DEBUG) return;
-    if(!box){
-      box=document.createElement('div');
-      box.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;opacity:.92;pointer-events:none';
-      document.body.appendChild(box);
-    }
-    box.textContent=(msg+'\n'+box.textContent).split('\n').slice(0,14).join('\n');
+    if(!box){box=document.createElement('div');box.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;opacity:.92;pointer-events:none';document.body.appendChild(box);}
+    box.textContent=(m+'\n'+box.textContent).split('\n').slice(0,16).join('\n');
   }
-  function desc(el){
-    if(!el||el===document.body) return 'body';
-    return el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(el.readOnly?'[ro]':'');
-  }
+  const d=el=>!el||el===document.body?'body':el.tagName.toLowerCase()+(el.id?'#'+el.id:'');
   const SEL='input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea';
-  function fields(){
-    return [...document.querySelectorAll(SEL)].filter(el=>
-      !el.disabled&&!el.readOnly&&el.tabIndex!==-1&&el.offsetParent!==null&&el.getClientRects().length>0);
-  }
-  function isTab(e){return e.key==='Tab'||e.code==='Tab'||e.keyCode===9;}
-  window.addEventListener('DOMContentLoaded',()=>log(TABFIX_VER+' | iPad='+isIPad+' | platform='+plat+' | touch='+tp+'\n'+ua));
-  window.addEventListener('keydown',e=>{
-    log('keydown key='+e.key+' code='+e.code+' kc='+e.keyCode+' shift='+e.shiftKey+' alt='+e.altKey+' em='+desc(e.target));
-    if(!isIPad||!isTab(e)||e.altKey||e.metaKey||e.ctrlKey) return;
-    const list=fields();
-    if(!list.length){log('  nenhum campo visivel');return;}
-    let i=list.indexOf(document.activeElement);
-    if(i===-1) i=e.shiftKey?list.length:-1;
-    const next=list[(i+(e.shiftKey?-1:1)+list.length)%list.length];
-    e.preventDefault();
-    e.stopPropagation();
-    next.focus();
+  const fields=()=>[...document.querySelectorAll(SEL)].filter(el=>!el.disabled&&!el.readOnly&&el.tabIndex!==-1&&el.offsetParent!==null&&el.getClientRects().length>0);
+  const isTab=e=>e.key==='Tab'||e.code==='Tab'||e.keyCode===9;
+  let lastField=null, lastPointer=0, lastKeyNav=0, moving=false, shiftHeld=false;
+  window.addEventListener('keydown',e=>{if(e.key==='Shift')shiftHeld=true;},true);
+  window.addEventListener('keyup',e=>{if(e.key==='Shift')shiftHeld=false;},true);
+  window.addEventListener('blur',()=>{shiftHeld=false;});
+  function go(from,back){
+    const list=fields(); if(!list.length) return;
+    let i=list.indexOf(from); if(i===-1) i=back?list.length:-1;
+    const next=list[(i+(back?-1:1)+list.length)%list.length];
+    moving=true; next.focus(); moving=false;
     if(next.tagName==='INPUT'&&next.select) try{next.select();}catch(_){}
     try{next.scrollIntoView({block:'nearest'});}catch(_){}
-    setTimeout(()=>log('  foco agora: '+desc(document.activeElement)+' (alvo '+desc(next)+')'),0);
+    lastField=next; lastKeyNav=Date.now();
+    log('  -> '+d(next));
+  }
+  window.addEventListener('DOMContentLoaded',()=>log(VER+' | iPad='+isIPad+' | touch='+tp));
+  ['pointerdown','touchstart','mousedown'].forEach(t=>window.addEventListener(t,()=>{lastPointer=Date.now();},true));
+  function onKey(e){
+    log(e.type+' key='+e.key+' kc='+e.keyCode+' shift='+e.shiftKey+' em='+d(e.target));
+    if(!isIPad||!isTab(e)||e.altKey||e.metaKey||e.ctrlKey) return;
+    e.preventDefault(); e.stopPropagation();
+    if(e.type==='keyup'&&Date.now()-lastKeyNav<250) return; // já tratado no keydown
+    go(document.activeElement&&document.activeElement.matches&&document.activeElement.matches(SEL)?document.activeElement:lastField,e.shiftKey);
+  }
+  window.addEventListener('keydown',onKey,true);
+  window.addEventListener('keyup',onKey,true);
+  window.addEventListener('focusin',e=>{
+    const t=e.target;
+    log('focusin '+d(t)+(Date.now()-lastPointer<800?' (toque)':' (teclado)'));
+    if(!t.matches||!t.matches(SEL)) return;
+    if(isIPad&&!moving&&lastField&&t!==lastField&&Date.now()-lastPointer>800&&Date.now()-lastKeyNav>250){
+      // salto feito pelo iPad sem toque: segue a ordem do formulário
+      const list=fields(), a=list.indexOf(lastField), b=list.indexOf(t);
+      const want=a>-1?(a+(shiftHeld?-1:1)+list.length)%list.length:-1;
+      if(a>-1&&b!==want){ const from=lastField; setTimeout(()=>go(from,shiftHeld),0); return; }
+    }
+    lastField=t;
   },true);
-  window.addEventListener('focusin',e=>log('focusin '+desc(e.target)),true);
 })();
 </script>
 </body>
