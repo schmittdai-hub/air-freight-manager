@@ -3586,30 +3586,53 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 // ============================================
-// iPad: Tab / Shift+Tab entre campos
+// iPad: Tab / Shift+Tab entre campos  (v3 + diagnóstico)
 // O Safari do iPad pula campos com o Tab; aqui o app assume
 // a navegação. Em outros aparelhos nada muda.
+// Diagnóstico: abra o app com ?debug=1 no endereço.
 // ============================================
 (function(){
-  const isIPad=/iPad/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  if(!isIPad) return;
+  const TABFIX_VER='tabfix-v3';
+  const ua=navigator.userAgent, plat=navigator.platform, tp=navigator.maxTouchPoints||0;
+  const isIPad=/iPad|iPhone/.test(ua)||(/Mac/.test(plat)&&tp>1);
+  const DEBUG=/[?&]debug=1/.test(location.search);
+  let box=null;
+  function log(msg){
+    if(!DEBUG) return;
+    if(!box){
+      box=document.createElement('div');
+      box.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;opacity:.92;pointer-events:none';
+      document.body.appendChild(box);
+    }
+    box.textContent=(msg+'\n'+box.textContent).split('\n').slice(0,14).join('\n');
+  }
+  function desc(el){
+    if(!el||el===document.body) return 'body';
+    return el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(el.readOnly?'[ro]':'');
+  }
   const SEL='input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea';
   function fields(){
     return [...document.querySelectorAll(SEL)].filter(el=>
       !el.disabled&&!el.readOnly&&el.tabIndex!==-1&&el.offsetParent!==null&&el.getClientRects().length>0);
   }
-  document.addEventListener('keydown',e=>{
-    if(e.key!=='Tab'||e.altKey||e.metaKey||e.ctrlKey) return;
+  function isTab(e){return e.key==='Tab'||e.code==='Tab'||e.keyCode===9;}
+  window.addEventListener('DOMContentLoaded',()=>log(TABFIX_VER+' | iPad='+isIPad+' | platform='+plat+' | touch='+tp+'\n'+ua));
+  window.addEventListener('keydown',e=>{
+    log('keydown key='+e.key+' code='+e.code+' kc='+e.keyCode+' shift='+e.shiftKey+' alt='+e.altKey+' em='+desc(e.target));
+    if(!isIPad||!isTab(e)||e.altKey||e.metaKey||e.ctrlKey) return;
     const list=fields();
-    if(!list.length) return;
+    if(!list.length){log('  nenhum campo visivel');return;}
     let i=list.indexOf(document.activeElement);
     if(i===-1) i=e.shiftKey?list.length:-1;
     const next=list[(i+(e.shiftKey?-1:1)+list.length)%list.length];
     e.preventDefault();
+    e.stopPropagation();
     next.focus();
-    if(next.select&&next.tagName==='INPUT') try{next.select();}catch(_){}
-    next.scrollIntoView({block:'nearest'});
+    if(next.tagName==='INPUT'&&next.select) try{next.select();}catch(_){}
+    try{next.scrollIntoView({block:'nearest'});}catch(_){}
+    setTimeout(()=>log('  foco agora: '+desc(document.activeElement)+' (alvo '+desc(next)+')'),0);
   },true);
+  window.addEventListener('focusin',e=>log('focusin '+desc(e.target)),true);
 })();
 </script>
 </body>
