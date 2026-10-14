@@ -3584,6 +3584,33 @@ window.addEventListener('DOMContentLoaded',async()=>{
   initPickers();
   bindAutoResize();
 });
+
+// ============================================
+// iPad: Tab / Shift+Tab entre campos
+// O Safari do iPad pula campos com o Tab; aqui o app assume
+// a navegação. Em outros aparelhos nada muda.
+// ============================================
+(function(){
+  const isIPad=/iPad/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!isIPad) return;
+  const SEL='input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea';
+  function fields(){
+    return [...document.querySelectorAll(SEL)].filter(el=>
+      !el.disabled&&!el.readOnly&&el.tabIndex!==-1&&el.offsetParent!==null&&el.getClientRects().length>0);
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Tab'||e.altKey||e.metaKey||e.ctrlKey) return;
+    const list=fields();
+    if(!list.length) return;
+    let i=list.indexOf(document.activeElement);
+    if(i===-1) i=e.shiftKey?list.length:-1;
+    const next=list[(i+(e.shiftKey?-1:1)+list.length)%list.length];
+    e.preventDefault();
+    next.focus();
+    if(next.select&&next.tagName==='INPUT') try{next.select();}catch(_){}
+    next.scrollIntoView({block:'nearest'});
+  },true);
+})();
 </script>
 </body>
 </html>
