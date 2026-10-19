@@ -505,6 +505,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
   <div class="list-header">
     <div class="list-title">All Processes <small id="list-count">0 records</small></div>
     <div class="list-actions">
+      <button class="btn btn-primary" onclick="exportGccReport()">↓ GCC Daily Report</button>
       <button class="btn btn-green" onclick="exportExcel()">↓ Excel</button>
       <button class="btn" onclick="exportBackup()">↓ Backup JSON</button>
       <button class="btn" onclick="importBackupClick()">↑ Restore JSON</button>
@@ -3362,6 +3363,187 @@ function calcFeesTotal(){
 // ============================================
 // EXPORT EXCEL / PDF / BACKUP
 // ============================================
+// ============================================
+// GCC DAILY REPORT (PDF + Excel)
+// Rules:
+//  - Agent contains "GCC", status not Closed/Cancelled, File Closed not checked
+//  - Leaves the report if "Latest Update to Agent" says "file closed" (any case)
+//  - Import leaves the report once DN Sent is checked
+//  - Export leaves the report once DN Sent AND Departure Date are checked
+//  - "Updated" column always shows the report date (updates are done daily)
+// ============================================
+const GCC_NAVY = [0, 32, 96];
+const GCC_FILE_CLOSED_RE = /file\s*-?\s*closed/i;
+
+function gccChkDone(p, key){
+  const keys = p.mode==='imp' ? IMP_CHK_KEYS : EXP_CHK_KEYS;
+  const i = keys.indexOf(key); if(i<0) return null;
+  const v = (p.checklist||{})['chk_'+i];
+  return v && (v.done||v.checked) ? (v.date||'done') : null;
+}
+function gccParseDate(s){
+  if(!s) return null;
+  s = String(s);
+  if(s.includes('T')||(s.includes('-')&&s.length>=10)){const d=new Date(s);return isNaN(d)?null:d;}
+  const p=s.split('/');
+  if(p.length>=3){const d=new Date(+p[2],+p[0]-1,+p[1]);return isNaN(d)?null:d;}
+  return null;
+}
+function gccFmt(d){
+  if(!d) return '';
+  return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear();
+}
+function gccClean(s){
+  s = String(s||'').replace(/\[EXTERNAL\]/gi,' ').replace(/\b(RE|FW|FWD)\s*:\s*/gi,' ');
+  s = s.replace(/\s+/g,' ').trim();
+  const m = s.match(/^(.{8,}?)\s*\1$/);            // text pasted twice
+  if(m) s = m[1].trim();
+  return s.replace(/^[\/|\-\s]+|[\/|\-\s]+$/g,'');
+}
+
+function isOnGccReport(p){
+  if(!/gcc/i.test(p.agent||'')) return false;
+  if(isFrozenStatus(p)) return false;
+  if(gccChkDone(p,'file_closed')) return false;
+  if(GCC_FILE_CLOSED_RE.test(p.agentUpdate||'')) return false;
+  if(p.mode==='imp') return !gccChkDone(p,'dn_sent');
+  return !(gccChkDone(p,'dn_sent') && gccChkDone(p,'departure_date'));
+}
+
+function buildGccReportRows(){
+  const todayStr = gccFmt(new Date());
+  const rows = processes.filter(isOnGccReport).map(p=>{
+    const nomD = gccParseDate(gccChkDone(p,'nomination')) || gccParseDate(p.createdAt);
+    return {
+      nomD,
+      nomination: gccFmt(nomD),
+      type: p.mode==='exp' ? 'Air Export' : 'Air Import',
+      carrier: String(p.airline||'').toUpperCase().trim(),
+      hawb: String(p.hawb||'').trim(),
+      booking: String(p.mawb||'').trim(),
+      client: gccClean(p.mode==='exp' ? p.shipper : p.consignee),
+      reference: gccClean(p.reference),
+      update: gccClean(p.agentUpdate) || '—',
+      updated: todayStr
+    };
+  });
+  rows.sort((a,b)=>(a.nomD||0)-(b.nomD||0));
+  return [
+    {title:'AIR EXPORT', rows: rows.filter(r=>r.type==='Air Export')},
+    {title:'AIR IMPORT', rows: rows.filter(r=>r.type==='Air Import')},
+  ].filter(s=>s.rows.length);
+}
+
+const GCC_COLS = [
+  {h:'Nomination', k:'nomination', pdf:52, xl:11},
+  {h:'Shipment Type', k:'type', pdf:50, xl:11},
+  {h:'Carrier', k:'carrier', pdf:34, xl:7},
+  {h:'HAWB', k:'hawb', pdf:50, xl:11},
+  {h:'Booking', k:'booking', pdf:62, xl:14},
+  {h:'Client', k:'client', pdf:95, xl:24},
+  {h:'Reference #', k:'reference', pdf:154, xl:40},
+  {h:'Notes | Latest Update', k:'update', pdf:205, xl:52},
+  {h:'Updated', k:'updated', pdf:50, xl:11},
+];
+
+function exportGccReport(){
+  if(!processes.length){alert('No data loaded yet.');return;}
+  const sections = buildGccReportRows();
+  const total = sections.reduce((s,x)=>s+x.rows.length,0);
+  if(!total){alert('No active GCC shipments to report.');return;}
+  const today = new Date();
+  const longDate = today.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const fileBase = 'GCC Daily Report '+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0')+'-'+today.getFullYear();
+  gccReportPDF(sections, longDate, fileBase);
+  gccReportXLSX(sections, longDate, fileBase);
+}
+
+function gccReportPDF(sections, longDate, fileBase){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'pt', format:'letter'});
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...GCC_NAVY); doc.rect(20,20,W-40,34,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('GCC DAILY REPORT', W/2, 42, {align:'center'});
+  doc.setFontSize(8); doc.text(longDate, W-26, 31, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('SCL / Seacoast Logistics', 26, 31);
+
+  const body = [];
+  sections.forEach(s=>{
+    body.push([{content:s.title+'  ('+s.rows.length+')', colSpan:GCC_COLS.length,
+      styles:{fillColor:[221,231,245], fontStyle:'bold', textColor:[20,20,20]}}]);
+    s.rows.forEach(r=> body.push(GCC_COLS.map(c=>r[c.k]||'')));
+  });
+
+  doc.autoTable({
+    theme:'grid', startY: 56, margin:{left:20,right:20},
+    head:[GCC_COLS.map(c=>c.h)], body,
+    styles:{font:'helvetica', fontSize:7, cellPadding:2.5, overflow:'linebreak', valign:'middle', lineColor:[190,190,190], lineWidth:0.4, textColor:[25,25,25]},
+    headStyles:{fillColor:GCC_NAVY, textColor:255, fontStyle:'bold', halign:'center'},
+    columnStyles: Object.fromEntries(GCC_COLS.map((c,i)=>[i,{cellWidth:c.pdf}])),
+    didDrawPage: d=>{
+      const H = doc.internal.pageSize.getHeight();
+      doc.setFontSize(6.5); doc.setTextColor(110);
+      doc.text('Page '+doc.internal.getNumberOfPages(), W-20, H-16.5, {align:'right'});
+    }
+  });
+  doc.save(fileBase+'.pdf');
+}
+
+function gccReportXLSX(sections, longDate, fileBase){
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('GCC Daily Report', {
+    pageSetup:{orientation:'landscape', paperSize:1, fitToPage:true, fitToWidth:1, fitToHeight:0,
+               margins:{left:0.3,right:0.3,top:0.4,bottom:0.4,header:0.2,footer:0.2}}
+  });
+  const n = GCC_COLS.length, last = String.fromCharCode(64+n);
+  ws.columns = GCC_COLS.map(c=>({width:c.xl}));
+  const navy = 'FF002060';
+  const border = {style:'thin', color:{argb:'FFBFBFBF'}};
+  const allBorders = {top:border,left:border,bottom:border,right:border};
+
+  ws.mergeCells('A1:'+last+'1');
+  ws.getCell('A1').value = longDate;
+  ws.getCell('A1').alignment = {horizontal:'right'};
+  ws.getCell('A1').font = {bold:true, color:{argb:'FFFFFFFF'}, size:9};
+  ws.mergeCells('A2:'+last+'2');
+  ws.getCell('A2').value = 'GCC DAILY REPORT';
+  ws.getCell('A2').font = {bold:true, size:16, color:{argb:'FFFFFFFF'}};
+  ws.getCell('A2').alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(2).height = 26;
+  [1,2].forEach(r=>{ for(let c=1;c<=n;c++) ws.getRow(r).getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}}; });
+
+  const hr = ws.addRow(GCC_COLS.map(c=>c.h));
+  hr.height = 30;
+  hr.eachCell(c=>{ c.font={bold:true,color:{argb:'FFFFFFFF'},size:10}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};
+    c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border=allBorders; });
+
+  sections.forEach(s=>{
+    const sr = ws.addRow([s.title+'  ('+s.rows.length+')']);
+    ws.mergeCells('A'+sr.number+':'+last+sr.number);
+    sr.getCell(1).font = {bold:true, size:10};
+    sr.getCell(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFDDE7F5'}};
+    s.rows.forEach(r=>{
+      const row = ws.addRow(GCC_COLS.map(c=>r[c.k]||''));
+      row.eachCell({includeEmpty:true}, c=>{
+        c.font = {size:9}; c.border = allBorders;
+        c.alignment = {vertical:'middle', wrapText:true};
+      });
+    });
+  });
+  ws.views = [{state:'frozen', ySplit:3}];
+  ws.pageSetup.printTitlesRow = '3:3';
+
+  wb.xlsx.writeBuffer().then(buf=>{
+    const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=fileBase+'.xlsx'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+}
+
 function exportExcel(){
   if(!processes.length){alert('No data to export.');return;}
 
