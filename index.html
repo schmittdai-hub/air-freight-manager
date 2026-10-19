@@ -3370,6 +3370,7 @@ function calcFeesTotal(){
 //  - Leaves the report if "Latest Update to Agent" says "file closed" (any case)
 //  - Import leaves the report once DN Sent is checked
 //  - Export leaves the report once DN Sent AND Departure Date are checked
+//    (stays on the report through the departure day itself, drops the next day)
 //  - "Updated" column always shows the report date (updates are done daily)
 // ============================================
 const GCC_NAVY = [0, 32, 96];
@@ -3407,7 +3408,10 @@ function isOnGccReport(p){
   if(gccChkDone(p,'file_closed')) return false;
   if(GCC_FILE_CLOSED_RE.test(p.agentUpdate||'')) return false;
   if(p.mode==='imp') return !gccChkDone(p,'dn_sent');
-  return !(gccChkDone(p,'dn_sent') && gccChkDone(p,'departure_date'));
+  const dep = gccChkDone(p,'departure_date');
+  if(!(gccChkDone(p,'dn_sent') && dep)) return true;
+  const depD = gccParseDate(dep), t = new Date(); t.setHours(0,0,0,0);
+  return !!(depD && depD >= t);   // departing today (or later) -> still reported
 }
 
 function buildGccReportRows(){
@@ -3458,7 +3462,7 @@ function exportGccReport(){
   gccReportXLSX(sections, longDate, fileBase);
 }
 
-function gccReportPDF(sections, longDate, fileBase){
+function gccReportPDF(sections, longDate, fileBase, asData){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:'landscape', unit:'pt', format:'letter'});
   const W = doc.internal.pageSize.getWidth();
@@ -3489,7 +3493,16 @@ function gccReportPDF(sections, longDate, fileBase){
       doc.text('Page '+doc.internal.getNumberOfPages(), W-20, H-16.5, {align:'right'});
     }
   });
+  if(asData) return doc.output('datauristring');
   doc.save(fileBase+'.pdf');
+}
+
+// Used by the daily automation: returns rows + PDF (base64) without downloading
+function gccReportPdfData(){
+  const sections = buildGccReportRows();
+  const today = new Date();
+  const longDate = today.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  return {date: gccFmt(today), rows: sections.reduce((s,x)=>s+x.rows.length,0), pdf: gccReportPDF(sections, longDate, '', true)};
 }
 
 function gccReportXLSX(sections, longDate, fileBase){
