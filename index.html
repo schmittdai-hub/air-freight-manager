@@ -1,40 +1,3860 @@
-From 28156894dfd1cfdfda46ff639ac7f62eee69152b Mon Sep 17 00:00:00 2001
-From: Claude <noreply@anthropic.com>
-Date: Mon, 23 Nov 2026 10:38:30 -0300
-Subject: [PATCH] GCC report: Shipper and Consignee columns (PDF + XLSX)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Air Freight Process Manager</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root{
+  --bg:#F5F4F1;--surface:#FFF;--surface2:#F0EEE9;--border:#D8D5CE;--border-strong:#B0ADA4;
+  --text:#1A1917;--text-muted:#6B6860;--text-hint:#9B9890;
+  --accent:#1A4F8A;--accent-light:#E8EFF8;--accent-mid:#3A6FAA;
+  --imp:#6B3FA0;--imp-light:#F3EEFF;--imp-mid:#8A5DC0;--imp-border:#C8A8F0;
+  --success:#1A6B3A;--success-bg:#E8F5EE;--success-border:#A0D8B0;
+  --warn:#7A4A00;--warn-bg:#FFF3DC;--warn-border:#E8C060;
+  --danger:#8A1A1A;--danger-bg:#F8E8E8;
+  --dg-bg:#FFF0E8;--dg-text:#7A2E00;--dg-border:#F0B080;
+  --onhold:#005A5A;--onhold-bg:#E0F5F5;--onhold-border:#80D0D0;
+  --cancelled:#5A005A;--cancelled-bg:#F5E0F5;--cancelled-border:#D080D0;
+  --quote:#2C5F8D;--quote-bg:#E6F0FA;--quote-border:#A8C8E8;
+  --misc:#6B4423;--misc-bg:#F0E8DC;--misc-border:#D0B898;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;}
 
-Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01Fpk3WYK4mbYN69W9PBw9Lv
----
- index.html | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+.app-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:12px;flex-wrap:wrap;}
+.nav-brand{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap;}
+.nav-brand span{color:var(--accent);}
+.nav-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+.nav-tab{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:6px 14px;border-radius:3px;border:1px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.nav-tab:hover{background:var(--surface2);}
+.nav-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.nav-tab.imp.active{background:var(--imp);border-color:var(--imp);}
+.nav-tab.dash.active{background:#2D6A4F;border-color:#2D6A4F;}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.sync-status{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-hint);}
+.sync-status.ok{background:var(--success-bg);border-color:var(--success-border);color:var(--success);}
+.sync-status.err{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
+.sync-status.saving{background:var(--warn-bg);border-color:var(--warn-border);color:var(--warn);}
+.save-toast-nav{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--success);padding:6px 10px;opacity:0;transition:opacity .3s;}
+.save-toast-nav.show{opacity:1;}
 
-diff --git a/index.html b/index.html
-index 74d98c7..8f14e08 100644
---- a/index.html
-+++ b/index.html
-@@ -3426,6 +3426,8 @@ function buildGccReportRows(){
-       hawb: String(p.hawb||'').trim(),
-       booking: String(p.mawb||'').trim(),
-       client: gccClean(p.mode==='exp' ? p.shipper : p.consignee),
-+      shipper: gccClean(p.shipper),
-+      consignee: gccClean(p.consignee),
-       reference: gccClean(p.reference),
-       update: gccClean(p.agentUpdate) || '—',
-       updated: todayStr
-@@ -3444,9 +3446,10 @@ const GCC_COLS = [
-   {h:'Carrier', k:'carrier', pdf:34, xl:7},
-   {h:'HAWB', k:'hawb', pdf:50, xl:11},
-   {h:'Booking', k:'booking', pdf:62, xl:14},
--  {h:'Client', k:'client', pdf:95, xl:24},
--  {h:'Reference #', k:'reference', pdf:154, xl:40},
--  {h:'Notes | Latest Update', k:'update', pdf:205, xl:52},
-+  {h:'Shipper', k:'shipper', pdf:70, xl:20},
-+  {h:'Consignee', k:'consignee', pdf:70, xl:20},
-+  {h:'Reference #', k:'reference', pdf:124, xl:36},
-+  {h:'Notes | Latest Update', k:'update', pdf:190, xl:48},
-   {h:'Updated', k:'updated', pdf:50, xl:11},
- ];
- 
--- 
-2.43.0
+.screen{display:none;padding:24px;max-width:1100px;margin:0 auto;}
+.screen.active{display:block;}
+
+.migrate-banner{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:6px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.migrate-banner-text{font-size:12px;color:var(--warn);flex:1;}
+.migrate-banner strong{font-weight:600;}
+
+.dash-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
+.dash-card{transition:transform .15s,border-color .15s,box-shadow .15s;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px 18px;cursor:pointer;transition:all .15s;}
+.dash-card:hover{border-color:var(--accent-mid);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.06);}
+.dash-card.no-click{cursor:default;}
+.dash-card:not(.no-click){cursor:pointer;}
+.dash-card:not(.no-click):hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.dash-card.no-click:hover{transform:none;border-color:var(--border);box-shadow:none;}
+.dash-card-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-hint);margin-bottom:6px;}
+.dash-card-value{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--text);}
+.dash-card-value.accent{color:var(--accent);}
+.dash-card-value.imp{color:var(--imp);}
+.dash-card-value.green{color:var(--success);}
+.dash-card-value.warn{color:var(--warn);}
+.dash-card-value.quote{color:var(--quote);}
+.dash-card-value.misc{color:var(--misc);}
+.dash-card-sub{font-size:11px;color:var(--text-hint);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.dash-card-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text-hint);border:1px solid var(--border);margin-top:7px;}
+.dash-card-trend{font-family:'IBM Plex Mono',monospace;font-size:11px;margin-top:4px;}
+.dash-card-trend.up{color:var(--success);}
+.dash-card-trend.down{color:var(--danger);}
+.dash-card-trend.neutral{color:var(--text-hint);}
+.dash-section-title{font-size:14px;font-weight:600;margin-bottom:12px;letter-spacing:-.01em;}
+.dash-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;}
+.alert-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:6px;transition:filter .15s;border-left-width:4px!important;border-left-style:solid!important;}
+.alert-item[onclick]:hover{filter:brightness(.95);}
+.alert-arrow{margin-left:auto;opacity:.5;font-size:14px;}
+.alert-item:hover{opacity:.8;}
+.alert-item.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn);border-left-color:#E8A000!important;}
+.alert-item.danger{background:var(--danger-bg);border:1px solid #E08080;color:var(--danger);border-left-color:#CC0000!important;}
+.alert-item.info{background:var(--accent-light);border:1px solid #A0C0E8;color:var(--accent);border-left-color:#1A4F8A!important;}
+.alert-icon{font-size:14px;flex-shrink:0;}
+.no-alerts{font-size:12px;color:var(--text-hint);text-align:center;padding:20px;}
+.recent-table{width:100%;border-collapse:collapse;}
+.recent-table th{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+.recent-table td{padding:8px;font-size:12px;border-bottom:1px solid var(--border);cursor:pointer;}
+.recent-table tbody tr:hover{background:var(--accent-light);}
+.recent-table tr:last-child td{border-bottom:none;}
+
+.list-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap;}
+.list-title{font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.list-title small{font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px;font-family:'IBM Plex Mono',monospace;}
+.list-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.filters-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.filter-input{font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:6px 10px;outline:none;transition:border .15s;}
+.filter-input:focus{border-color:var(--accent-mid);}
+.filter-select{font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:6px 10px;outline:none;cursor:pointer;}
+.clear-filters{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint);background:transparent;border:none;cursor:pointer;padding:4px 8px;}
+.clear-filters:hover{color:var(--danger);}
+.processes-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.processes-table th{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);padding:9px 12px;background:var(--surface2);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.processes-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px;}
+.processes-table tr:last-child td{border-bottom:none;}
+.processes-table tbody tr{cursor:pointer;transition:background .1s;}
+.processes-table tbody tr:hover{background:var(--accent-light);}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+.route-cell{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:var(--accent);}
+.pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.05em;padding:2px 8px;border-radius:2px;}
+.pill-new{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);}
+.pill-inprocess{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border);}
+.pill-closed{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border);}
+.pill-onhold{background:var(--onhold-bg);color:var(--onhold);border:1px solid var(--onhold-border);}
+.pill-cancelled{background:var(--cancelled-bg);color:var(--cancelled);border:1px solid var(--cancelled-border);}
+.pill-quote{background:var(--quote-bg);color:var(--quote);border:1px solid var(--quote-border);}
+.pill-misc{background:var(--misc-bg);color:var(--misc);border:1px solid var(--misc-border);}
+.pill-exp{background:var(--accent-light);color:var(--accent);border:1px solid #A0C0E8;}
+.pill-imp{background:var(--imp-light);color:var(--imp);border:1px solid var(--imp-border);}
+.prog-mini{height:3px;background:var(--border);border-radius:2px;width:72px;margin-top:4px;}
+.prog-mini-fill{height:3px;background:var(--success);border-radius:2px;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-hint);}
+.empty-state .icon{font-size:32px;margin-bottom:12px;opacity:.4;}
+.empty-state p{font-size:13px;margin-bottom:16px;}
+.delete-row-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;border:1px solid var(--border);background:transparent;color:var(--text-hint);cursor:pointer;opacity:0;transition:opacity .15s;}
+.processes-table tbody tr:hover .delete-row-btn{opacity:1;}
+.delete-row-btn:hover{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
+.next-task-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+.ntb-0{background:#E8EFF8;color:#1A4F8A;border:1px solid #A0C0E8;}
+.ntb-1{background:#FFF3DC;color:#7A4A00;border:1px solid #E8C060;}
+.ntb-2{background:#E8F5EE;color:#1A6B3A;border:1px solid #A0D8B0;}
+.ntb-3{background:#F3EEFF;color:#6B3FA0;border:1px solid #C8A8F0;}
+.ntb-done{background:#E8F5EE;color:#1A6B3A;border:1px solid #A0D8B0;}
+.days-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.days-fresh{background:#E8F5EE;color:#1A6B3A;border:1px solid #A0D8B0;}
+.days-mid{background:#FFF3DC;color:#7A4A00;border:1px solid #E8C060;}
+.days-old{background:#F8E8E8;color:#8A1A1A;border:1px solid #E08080;}
+.days-frozen{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);font-style:italic;}
+
+.form-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;flex-wrap:wrap;gap:12px;border-bottom:3px solid var(--accent);}
+.form-topbar.imp-mode{border-bottom-color:var(--imp);}
+.doc-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.doc-main-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-top:2px;}
+.doc-main-title span.exp-color{color:var(--accent);}
+.doc-main-title span.imp-color{color:var(--imp);}
+.form-topbar-right{text-align:right;}
+.file-number-display{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:var(--accent);}
+.file-number-display.imp{color:var(--imp);}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-bottom:12px;overflow:hidden;}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.section-header.imp-hdr{background:var(--imp-light);border-bottom-color:var(--imp-border);}
+.section-title{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.section-body{padding:14px;}
+.fields-grid{display:grid;gap:10px;}
+.cols-2{grid-template-columns:1fr 1fr;}
+.cols-3{grid-template-columns:1fr 1fr 1fr;}
+.cols-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+.cols-5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
+.field{display:flex;flex-direction:column;gap:4px;position:relative;}
+.field label{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-hint);}
+.field input,.field select,.field textarea{width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;transition:border-color .15s;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent-mid);background:#fff;}
+.field textarea{resize:vertical;min-height:56px;}
+.field input[readonly]{background:var(--surface2);color:var(--text-muted);cursor:default;}
+.cm-type-opt{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text);white-space:nowrap;}
+.cm-type-opt input[type=checkbox]{width:15px;height:15px;min-width:15px;flex:0 0 15px;margin:0;accent-color:var(--accent);cursor:pointer;}
+.field input.auto-calc{background:#F0F8F0;border-color:#A8D0B0;}
+.auto-resize{overflow:hidden;resize:none;min-height:80px;}
+.toggle-group{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--bg);}
+.toggle-group label{flex:1;display:flex;align-items:center;justify-content:center;padding:6px 8px;font-size:11px;font-weight:500;cursor:pointer;color:var(--text-muted);border-right:1px solid var(--border);transition:all .1s;letter-spacing:.02em;text-align:center;}
+.toggle-group label:last-child{border-right:none;}
+.toggle-group input[type=radio]{display:none;}
+.toggle-group label.active{background:var(--accent);color:#fff;}
+.toggle-group label.active-dg{background:var(--dg-bg);color:var(--dg-text);border-color:var(--dg-border);}
+.dg-subtype-row{display:none;}
+.dg-subtype-row.visible{display:flex;gap:10px;align-items:center;margin-top:8px;padding:10px 12px;background:var(--dg-bg);border:1px solid var(--dg-border);border-radius:3px;}
+.dg-row-label{font-size:11px;font-weight:600;color:var(--dg-text);letter-spacing:.05em;}
+.lv-extra{display:none;}
+.lv-extra.visible{display:contents;}
+.pu-toggle-row{display:flex;gap:6px;}
+.pu-toggle-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;border-radius:3px;border:1px solid var(--border);background:var(--bg);cursor:pointer;color:var(--text-muted);transition:all .15s;}
+.pu-toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.carrier-wrap{display:flex;gap:6px;flex-wrap:wrap;}
+.carrier-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;transition:all .15s;}
+.carrier-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+.bsource-wrap{display:flex;gap:6px;flex-wrap:wrap;}
+.bsource-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;transition:all .15s;}
+.bsource-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+.bsource-other-wrap{display:none;margin-top:6px;}
+.bsource-other-wrap.visible{display:block;}
+.route-stop{display:grid;grid-template-columns:90px 1fr 1fr 1fr 1fr;gap:8px;align-items:end;padding:8px 0;border-bottom:1px dashed var(--border);}
+.route-stop:last-child{border-bottom:none;}
+.route-leg-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text-muted);padding-bottom:8px;}
+.add-btn,.remove-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 12px;border-radius:3px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text-muted);transition:all .1s;}
+.add-btn:hover{background:var(--accent-light);border-color:var(--accent-mid);color:var(--accent);}
+.remove-btn:hover{background:var(--danger-bg);border-color:#E08080;color:var(--danger);}
+.volume-row{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px;}
+.volume-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.volume-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;}
+.volume-fields{display:grid;grid-template-columns:70px repeat(8,1fr);gap:6px;align-items:end;}
+.vi{font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:5px 6px;outline:none;width:100%;color:var(--text);text-align:right;}
+.vi:focus{border-color:var(--accent-mid);}
+.vi-in{background:#F0EEF8!important;color:var(--imp)!important;border-color:#D0C8F0!important;}
+.vi-in:focus{border-color:var(--imp-mid)!important;}
+@keyframes convertFlash{0%{background:#C8F0D8;border-color:#60C890;}100%{background:inherit;border-color:inherit;}}
+.vi-converted{animation:convertFlash 0.8s ease-out;}
+.col-hdr-vols{display:grid;grid-template-columns:70px repeat(8,1fr);gap:6px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+.col-hdr-vols span{font-size:9px;font-weight:600;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;text-align:center;}
+.col-hdr-vols span.in-hdr{color:var(--imp);}
+.vol-legend{display:flex;gap:16px;margin-bottom:10px;font-size:11px;color:var(--text-hint);align-items:center;flex-wrap:wrap;}
+.totals-bar{margin-top:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;}
+.tot-item{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);}
+.tot-item strong{color:var(--text);}
+.chargeable-badge{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;padding:4px 14px;border-radius:4px;background:var(--accent-light);color:var(--accent);border:1px solid #A0C0E8;}
+.chargeable-badge.imp{background:var(--imp-light);color:var(--imp);border-color:var(--imp-border);}
+.checklist-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.check-item{display:grid;grid-template-columns:18px 1fr 120px;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;transition:background .1s;}
+.check-item:hover{background:var(--accent-light);border-color:var(--border-strong);}
+.check-item.done{background:var(--success-bg);border-color:var(--success-border);}
+.check-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--success);cursor:pointer;flex-shrink:0;}
+.check-item .check-name{font-size:12px;font-weight:500;color:var(--text);}
+.check-item.done .check-name{color:var(--success);text-decoration:line-through;text-decoration-color:#60B880;}
+.check-date-in{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:3px 6px;outline:none;width:100%;}
+.check-date-in:focus{border-color:var(--accent-mid);}
+.progress-wrap{margin-top:12px;}
+.progress-track{height:3px;background:var(--border);border-radius:2px;}
+.progress-fill{height:3px;background:var(--success);border-radius:2px;transition:width .3s;}
+.progress-info{display:flex;justify-content:space-between;margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);}
+.revenue-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.rev-card{border:1px solid var(--border);border-radius:4px;padding:12px 14px;}
+.rev-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);margin-bottom:6px;}
+.rev-card input{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500;color:var(--text);border:none;background:transparent;outline:none;width:100%;padding:0;}
+.rev-card input::placeholder{color:var(--border-strong);}
+.fees-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fee-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;}
+.fee-label{font-size:11px;font-weight:500;color:var(--text-muted);flex:1;white-space:nowrap;}
+.fee-input{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:4px 7px;outline:none;width:110px;text-align:right;}
+.fee-input:focus{border-color:var(--imp-mid);}
+.cost-inline{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;}
+.cost-inline-label{font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;flex:1;}
+.cost-inline-input{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:5px 8px;outline:none;width:140px;text-align:right;}
+.cost-inline-input:focus{border-color:var(--accent-mid);}
+.form-actions{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.06em;padding:8px 18px;border-radius:3px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text-muted);transition:all .15s;text-transform:uppercase;}
+.btn:hover{background:var(--surface2);border-color:var(--border-strong);color:var(--text);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:var(--accent-mid);color:#fff;}
+.btn-primary.imp{background:var(--imp);border-color:var(--imp);}
+.btn-primary.imp:hover{background:var(--imp-mid);}
+.btn-back{color:var(--accent);}
+.btn-back:hover{background:var(--accent-light);border-color:var(--accent-mid);}
+.btn-back.imp{color:var(--imp);}
+.btn-back.imp:hover{background:var(--imp-light);border-color:var(--imp-border);}
+.btn-del{color:var(--danger);border-color:#E08080;}
+.btn-del:hover{background:var(--danger-bg);color:var(--danger);}
+.btn-green{background:#2D6A4F;color:#fff;border-color:#2D6A4F;}
+.btn-green:hover{background:#1B4332;color:#fff;}
+.btn-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-border);}
+.btn-warn:hover{background:#FFE8A0;color:var(--warn);}
+.ac-wrap{position:relative;}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--accent-mid);border-top:none;border-radius:0 0 4px 4px;z-index:300;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.ac-item{padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover{background:var(--accent-light);}
+.ac-item-name{font-weight:500;}
+.ac-item-type{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:24px;width:520px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:16px;letter-spacing:-.01em;}
+.modal-footer{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.company-list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;margin-bottom:6px;}
+.cli-name{font-weight:500;font-size:12px;flex:1;}
+.cli-type{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);background:var(--border);padding:1px 6px;border-radius:2px;}
+.cli-del{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:2px;border:1px solid var(--border);background:transparent;color:var(--text-hint);cursor:pointer;}
+.cli-del:hover{background:var(--danger-bg);color:var(--danger);}
+.status-select{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:4px 10px;border-radius:2px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;outline:none;}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(245,244,241,.85);z-index:999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading-overlay.show{display:flex;}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+
+.rev-summary-grid{display:grid;grid-template-columns:1fr 1fr 1.4fr 2fr;gap:12px;}
+.rev-main-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px 22px;}
+.rev-main-card.profit{border-color:var(--success-border);background:var(--success-bg);}
+.rev-main-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-hint);margin-bottom:8px;}
+.rev-main-value{font-size:32px;font-weight:600;letter-spacing:-.02em;color:var(--accent);}
+.rev-main-value.profit{color:var(--success);}
+.rev-main-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint);margin-top:6px;}
+.rev-main-sub strong{color:var(--success);}
+.rev-breakdown{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px 20px;}
+.rev-breakdown-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-hint);margin-bottom:12px;}
+.rev-breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;}
+.rev-breakdown-label{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+.rev-breakdown-val{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:var(--text);}
+.rev-breakdown-val.accent{color:var(--accent);}
+.rev-breakdown-val.imp{color:var(--imp);}
+.rev-breakdown-val.warn{color:var(--warn);}
+.rev-breakdown-divider{height:1px;background:var(--border);margin:6px 0;}
+@media(max-width:780px){.rev-summary-grid{grid-template-columns:1fr;}}
+.fees-total-bar{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:10px 14px;background:var(--imp-light);border:1px solid var(--imp-border);border-radius:3px;}
+.fees-total-label{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);}
+.fees-total-value{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:var(--imp);}
+/* ══════════════════════════════════════════════════════
+   DASHBOARD VISUAL REFRESH — scoped to #screen-dash only.
+   Pure presentation. Remove this block to revert entirely.
+   ══════════════════════════════════════════════════════ */
+#screen-dash{
+  --dash-blue:#3A6FC4; --dash-purple:#7B54C9;
+  --dash-radius:20px; --dash-radius-sm:16px;
+  --dash-shadow:0 8px 28px rgba(60,50,110,.08);
+  --dash-shadow-hover:0 14px 38px rgba(60,50,110,.16);
+  background:
+    radial-gradient(1200px 480px at 85% -8%, rgba(123,84,201,.10), transparent 60%),
+    radial-gradient(1000px 420px at -5% 0%, rgba(58,111,196,.09), transparent 55%);
+  border-radius:24px;
+  padding:28px;
+  max-width:1160px;
+}
+#screen-dash .dash-grid{gap:16px;}
+
+/* KPI cards — soft, rounded, layered depth */
+#screen-dash .dash-card{
+  border:none;
+  border-radius:var(--dash-radius-sm);
+  background:var(--surface);
+  box-shadow:var(--dash-shadow);
+  padding:18px 20px 20px;
+  position:relative;
+  overflow:hidden;
+}
+#screen-dash .dash-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:4px;
+  background:var(--text-hint);opacity:.85;
+}
+/* per-metric accent stripe (order: Total, Open, Exports, Imports, Closed, On Hold) */
+#screen-dash .dash-grid>.dash-card:nth-child(1)::before{background:linear-gradient(90deg,var(--dash-blue),var(--dash-purple));}
+#screen-dash .dash-grid>.dash-card:nth-child(2)::before{background:#E8A000;}
+#screen-dash .dash-grid>.dash-card:nth-child(3)::before{background:var(--dash-blue);}
+#screen-dash .dash-grid>.dash-card:nth-child(4)::before{background:var(--dash-purple);}
+#screen-dash .dash-grid>.dash-card:nth-child(5)::before{background:var(--success);}
+#screen-dash .dash-grid>.dash-card:nth-child(6)::before{background:var(--onhold);}
+#screen-dash .dash-card:not(.no-click):hover{
+  transform:translateY(-3px);
+  box-shadow:var(--dash-shadow-hover);
+  border:none;
+}
+#screen-dash .dash-card.no-click:hover{transform:none;box-shadow:var(--dash-shadow);}
+#screen-dash .dash-card-value{font-size:30px;letter-spacing:-.03em;}
+#screen-dash .dash-card-badge{border:none;background:var(--surface2);}
+
+/* Revenue hero — gradient card that ties EXP(blue) + IMP(purple) together */
+#screen-dash .rev-main-card{
+  border:none;border-radius:var(--dash-radius);
+  background:linear-gradient(135deg,var(--dash-blue) 0%,var(--dash-purple) 100%);
+  box-shadow:0 12px 32px rgba(90,60,160,.24);
+  color:#fff;padding:22px 24px;
+}
+#screen-dash .rev-main-card.profit{
+  background:linear-gradient(135deg,#1F8A5B 0%,#0FB07E 100%);
+  box-shadow:0 12px 32px rgba(20,120,80,.22);
+}
+#screen-dash .rev-main-label{color:rgba(255,255,255,.82);}
+#screen-dash .rev-main-value,
+#screen-dash .rev-main-value.profit{color:#fff;font-size:34px;}
+#screen-dash .rev-main-sub{color:rgba(255,255,255,.85);}
+#screen-dash .rev-main-sub strong{color:#fff;}
+
+/* Breakdown + chart cards — soft white, rounded */
+#screen-dash .rev-breakdown{
+  border:none;border-radius:var(--dash-radius-sm);
+  background:var(--surface);box-shadow:var(--dash-shadow);
+}
+
+/* Alerts + Recent panels — floating, rounded */
+#screen-dash .dash-panel{
+  border:none;border-radius:var(--dash-radius);
+  background:var(--surface);box-shadow:var(--dash-shadow);
+  padding:20px 22px;
+}
+#screen-dash .dash-section-title{font-size:15px;}
+#screen-dash .alert-item{border-radius:12px;}
+#screen-dash .recent-table tbody tr:hover{background:rgba(123,84,201,.06);}
+
+/* Header — a touch more presence */
+#screen-dash>div:first-child>div:first-child{font-size:24px;}
+
+@media(max-width:780px){
+  #screen-dash{padding:16px;border-radius:16px;}
+}
+@media print{.app-nav,.form-actions,.modal-overlay{display:none!important;}.screen{padding:8px;}.section{break-inside:avoid;}}
+
+@media(max-width:780px){
+  .dash-grid{grid-template-columns:repeat(3,1fr);}
+  .dash-two-col{grid-template-columns:1fr;}
+  .cols-3,.cols-4,.cols-5{grid-template-columns:1fr 1fr;}
+  .cols-2{grid-template-columns:1fr;}
+  .checklist-grid{grid-template-columns:1fr;}
+  .volume-fields{grid-template-columns:60px 1fr 1fr 1fr 1fr;}
+  .col-hdr-vols{grid-template-columns:60px 1fr 1fr 1fr 1fr;}
+  .route-stop{grid-template-columns:70px 1fr 1fr;}
+  .revenue-grid,.fees-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Loading...</div>
+</div>
+
+<nav class="app-nav">
+  <div class="nav-brand">Air Freight <span>Manager</span></div>
+  <div class="nav-tabs">
+  <button class="nav-tab dash" id="tab-dash" onclick="showScreen('dash')">📊 Dashboard</button>
+    <button class="nav-tab active" id="tab-list" onclick="showScreen('list')">All Processes</button>
+    <button class="nav-tab" id="tab-exp-new" onclick="newProcess('exp')">+ New Export</button>
+    <button class="nav-tab imp" id="tab-imp-new" onclick="newProcess('imp')">+ New Import</button>
+    <button class="nav-tab" id="tab-companies" onclick="openCompanies()">🏢 Companies</button>
+  </div>
+  <div class="nav-right">
+    <span class="sync-status" id="sync-status">⏳ Connecting…</span>
+    <span class="save-toast-nav" id="save-toast-nav">✓ Saved</span>
+  </div>
+</nav>
+
+<div class="modal-overlay" id="modal-companies">
+  <div class="modal">
+    <div class="modal-title">🏢 Company Register</div>
+    <div class="fields-grid cols-2" style="margin-bottom:10px">
+      <div class="field"><label>Company Name</label><input type="text" id="cm_name" placeholder="e.g. DHL Supply Chain"></div>
+      <div class="field"><label>Type <span style="color:var(--text-hint);font-weight:400;text-transform:none;letter-spacing:0">(marque todos que se aplicam)</span></label>
+        <div id="cm_types" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;padding:6px 2px;">
+          <label class="cm-type-opt"><input type="checkbox" value="shipper"><span>Shipper</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="consignee"><span>Consignee</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="trucker"><span>Trucker</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="agent"><span>Agent</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="broker"><span>Customs Broker</span></label>
+          <label class="cm-type-opt"><input type="checkbox" value="airline"><span>Airline</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>Address</label><textarea id="cm_address" placeholder="Street, City, State, ZIP, Country" style="min-height:60px;width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;resize:vertical;"></textarea></div>
+    <div class="fields-grid cols-2" style="margin-bottom:10px">
+      <div class="field"><label>Contact Name</label><input type="text" id="cm_contact" placeholder=""></div>
+      <div class="field"><label>Phone</label><input type="text" id="cm_phone" placeholder=""></div>
+    </div>
+    <div class="field" style="margin-bottom:12px"><label>Notes</label><input type="text" id="cm_notes" placeholder=""></div>
+    <input type="hidden" id="cm_edit_id" value="">
+    <button class="btn btn-primary" onclick="saveCompany()" id="cm_save_btn">+ Add Company</button>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint);margin-bottom:8px;">Saved Companies</div>
+      <div id="company-list"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeCompanies()">Close</button></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-dash" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div style="font-size:22px;font-weight:600;letter-spacing:-.02em;">Dashboard</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)" id="dash-updated"></div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="dash-grid" id="dash-kpis" style="margin-bottom:20px"></div>
+
+  <!-- Alerts + Recent side by side -->
+  <div class="dash-two-col" style="margin-bottom:20px">
+    <div class="dash-panel">
+      <div class="dash-section-title">⚠️ Alerts <span id="dash-alert-count" style="font-size:11px;font-weight:400;color:var(--text-hint);margin-left:6px"></span></div>
+      <div id="dash-alerts"></div>
+    </div>
+    <div class="dash-panel">
+      <div class="dash-section-title">🕐 Recent Processes</div>
+      <div style="max-height:320px;overflow-y:auto">
+      <table class="recent-table">
+        <thead><tr><th>Type</th><th>File #</th><th>Route</th><th>Status</th><th>Days Open</th></tr></thead>
+        <tbody id="dash-recent"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue section — full width, proprio layout -->
+  <div class="dash-revenue-section" id="dash-revenue-section">
+    <div class="dash-section-title" style="margin-bottom:12px">💰 Revenue Summary</div>
+    <div id="dash-revenue"></div>
+  </div>
+</div>
+
+<div class="screen active" id="screen-list" style="display:block">
+  <div id="migrate-banner" class="migrate-banner" style="display:none">
+    <span class="migrate-banner-text">⚠️ <strong>Local data found!</strong> You have processes saved in this browser that haven't been migrated to the cloud yet.</span>
+    <button class="btn btn-warn" onclick="migrateLocalToSupabase()">☁️ Migrate to Cloud Now</button>
+    <button class="btn" onclick="dismissMigrate()">Dismiss</button>
+  </div>
+  <div class="list-header">
+    <div class="list-title">All Processes <small id="list-count">0 records</small></div>
+    <div class="list-actions">
+      <button class="btn btn-primary" onclick="exportGccReport()">↓ GCC Daily Report</button>
+      <button class="btn btn-green" onclick="exportExcel()">↓ Excel</button>
+      <button class="btn" onclick="exportBackup()">↓ Backup JSON</button>
+      <button class="btn" onclick="importBackupClick()">↑ Restore JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(event)">
+    </div>
+  </div>
+  <div class="filters-bar">
+    <input class="filter-input" id="f-search" placeholder="Search File #, MAWB, HAWB, Airline, Origin, Dest, Agent, Reference…" style="width:280px" oninput="renderTable()">
+    <select class="filter-select" id="f-mode" onchange="renderTable()">
+      <option value="">Export + Import</option>
+      <option value="exp">Export only</option>
+      <option value="imp">Import only</option>
+    </select>
+    <div class="multi-status-wrap" id="multi-status-wrap" style="position:relative">
+      <button class="filter-select" id="multi-status-btn" type="button" onclick="toggleStatusDropdown()" style="cursor:pointer;min-width:140px;text-align:left">Status ▾</button>
+      <div id="multi-status-dropdown" style="display:none;position:absolute;top:100%;left:0;background:var(--surface);border:1px solid var(--accent-mid);border-radius:3px;z-index:400;min-width:200px;padding:6px 0;box-shadow:0 4px 12px rgba(0,0,0,.1)">
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="NEW" onchange="renderTable()"> New</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="QUOTE" onchange="renderTable()"> Quote</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="IN PROCESS" onchange="renderTable()"> In Process</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="CLOSED" onchange="renderTable()"> Closed</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="ON HOLD" onchange="renderTable()"> On Hold</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="CANCELLED" onchange="renderTable()"> Cancelled</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer"><input type="checkbox" value="MISC/TRUCKING" onchange="renderTable()"> Miscellaneous/Trucking</label>
+      </div>
+    </div>
+    <input class="filter-input" id="f-date-from" type="text" placeholder="From MM/DD/YYYY" style="width:148px" oninput="renderTable()">
+    <input class="filter-input" id="f-date-to" type="text" placeholder="To MM/DD/YYYY" style="width:148px" oninput="renderTable()">
+    <button class="clear-filters" onclick="clearFilters()">Clear</button>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-hint);cursor:pointer;white-space:nowrap"><input type="checkbox" id="f-show-closed" onchange="renderTable()"> Show closed</label>
+  </div>
+  <table class="processes-table">
+    <thead>
+      <tr>
+        <th>Type</th><th>File #</th><th>MAWB</th><th>Shipper / Consignee</th>
+        <th>Route</th><th>Dept / ETA</th><th>Status</th><th>Next Task</th><th>Days Open</th><th>Progress</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="icon">📋</div>
+    <p>No processes found. Create your first export or import.</p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-primary" onclick="newProcess('exp')">+ New Export</button>
+      <button class="btn btn-primary imp" onclick="newProcess('imp')">+ New Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-exp" style="display:none">
+  <div class="form-topbar">
+    <div>
+      <div class="doc-label">Air Freight Shipment</div>
+      <div class="doc-main-title">Export <span class="exp-color">Cover</span></div>
+    </div>
+    <div class="form-topbar-right">
+      <select class="status-select" id="exp-status-select">
+        <option value="NEW">NEW</option><option value="QUOTE">QUOTE</option>
+        <option value="IN PROCESS">IN PROCESS</option><option value="CLOSED">CLOSED</option>
+        <option value="ON HOLD">ON HOLD</option><option value="CANCELLED">CANCELLED</option>
+        <option value="MISC/TRUCKING">MISCELLANEOUS/TRUCKING</option>
+      </select>
+      <div class="file-number-display" id="exp-file-display">—</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="exp-days-open"></div>
+    </div>
+  </div>
+
+  <!-- 1. IDENTIFICATION -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">1 · Identification</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class=>File Number</label>
+          <input type="text" id="e_file_number" placeholder="e.g. EXP-2024-001" oninput="document.getElementById('exp-file-display').textContent=this.value||'—'">
+        </div>
+        <div class="field"><label class=>MAWB</label><input type="text" id="e_mawb" placeholder="e.g. 123-45678901"></div>
+        <div class="field"><label>HAWB</label><input type="text" id="e_hawb" placeholder="e.g. HBL-0001"></div>
+        <div class="field ac-wrap"><label>Airline</label>
+          <input type="text" id="e_airline" placeholder="e.g. AA, LATAM" autocomplete="off" oninput="acFilter('e_airline','airline')">
+          <div class="ac-list" id="ac_e_airline" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class=>Origin Airport</label><input type="text" id="e_origin" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class=>Destination Airport</label><input type="text" id="e_dest" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field ac-wrap"><label>Agent</label>
+          <input type="text" id="e_agent" placeholder="" autocomplete="off" oninput="acFilter('e_agent','agent')">
+          <div class="ac-list" id="ac_e_agent" style="display:none"></div>
+        </div>
+        <div class="field"><label>Reference</label><input type="text" id="e_reference" placeholder=""></div>
+      </div>
+      <div class="fields-grid cols-3" style="margin-bottom:10px">
+        <div class="field"><label>Cargo Type</label>
+          <div class="toggle-group">
+            <label id="e_lbl_nondg" class="active" onclick="eDG(false)"><input type="radio" name="e_dg" value="non-dg" checked><span>NON-DG</span></label>
+            <label id="e_lbl_dg" onclick="eDG(true)"><input type="radio" name="e_dg" value="dg"><span>DG</span></label>
+          </div>
+        </div>
+        <div class="field"><label>Shipper Security</label>
+          <div class="toggle-group">
+            <label id="e_lbl_known" class="active" onclick="eT('e_lbl_known','e_lbl_unknown')"><input type="radio" name="e_sec" value="known" checked><span>KNOWN</span></label>
+            <label id="e_lbl_unknown" onclick="eT('e_lbl_unknown','e_lbl_known')"><input type="radio" name="e_sec" value="unknown"><span>UNKNOWN</span></label>
+          </div>
+        </div>
+        <div class="field"><label>Low Value</label>
+          <div class="toggle-group">
+            <label id="e_lbl_lv_yes" class="active" onclick="eLV(true)"><input type="radio" name="e_lv" value="yes" checked><span>YES</span></label>
+            <label id="e_lbl_lv_no" onclick="eLV(false)"><input type="radio" name="e_lv" value="no"><span>NO</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="dg-subtype-row" id="e_dg_row">
+        <span class="dg-row-label">⚠ DG TYPE:</span>
+        <div class="toggle-group" style="max-width:180px">
+          <label id="e_lbl_pax" class="active-dg" onclick="eDGT('pax')"><input type="radio" name="e_dgsub" value="pax" checked><span>PAX</span></label>
+          <label id="e_lbl_cao" onclick="eDGT('cao')"><input type="radio" name="e_dgsub" value="cao"><span>CAO</span></label>
+        </div>
+        <div class="field" style="max-width:300px;margin-left:12px">
+          <label style="color:var(--dg-text)">DG Description / UN Number</label>
+          <input type="text" id="e_dg_desc" placeholder="e.g. Lithium Batteries UN3481">
+        </div>
+      </div>
+      <div class="lv-extra" id="e_lv_fields">
+        <div class="fields-grid cols-3" style="margin-top:10px;padding:10px 12px;background:var(--accent-light);border:1px solid #B0C8E8;border-radius:3px">
+          <div class="field"><label style="color:var(--accent)">Declared Value (USD)</label><input type="text" id="e_declared_value" placeholder="e.g. 2500.00"></div>
+          <div class="field"><label style="color:var(--accent)">HTS Code</label><input type="text" id="e_hts_code" placeholder="e.g. 8471.30.0100"></div>
+          <div class="field"><label style="color:var(--accent)">AES ITN</label><input type="text" id="e_aes_itn" placeholder="e.g. X20240101123456"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. SHIPPER & CONSIGNEE -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">2 · Shipper & Consignee</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-2">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field ac-wrap">
+            <label class=>Shipper</label>
+            <input type="text" id="e_shipper" placeholder="Company name" autocomplete="off" oninput="acFilter('e_shipper','shipper')">
+            <div class="ac-list" id="ac_e_shipper" style="display:none"></div>
+          </div>
+          <div class="field"><label>Shipper Address</label><textarea id="e_shipper_address" placeholder="Street, City, State, ZIP, Country" style="min-height:64px;"></textarea></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field ac-wrap">
+            <label class=>Consignee</label>
+            <input type="text" id="e_consignee" placeholder="Company name" autocomplete="off" oninput="acFilter('e_consignee','consignee')">
+            <div class="ac-list" id="ac_e_consignee" style="display:none"></div>
+          </div>
+          <div class="field"><label>Consignee Address</label><textarea id="e_consignee_address" placeholder="Street, City, State, ZIP, Country" style="min-height:64px;"></textarea></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. FLIGHT SCHEDULE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">3 · Flight Schedule</span>
+      <button class="add-btn" onclick="addLeg('e')">+ Add Leg</button>
+    </div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr 1fr;gap:8px;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:10px;font-weight:500;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase">
+        <span>Leg</span><span>Flight #</span><span>From</span><span>To</span><span>Date / ETD</span>
+      </div>
+      <div id="e_legs" style="margin-bottom:14px;"></div>
+      <div class="fields-grid cols-4" style="margin-bottom:12px;">
+        <div class="field"><label>Airline Cut Off</label><input type="text" id="e_cutoff" placeholder="MM/DD/YYYY HH:MM" class="datepick-dt"></div>
+        <div class="field"><label>Departure Date</label><input type="text" id="e_departure" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>CASS Weight (kg)</label><input type="text" id="e_cass_weight" placeholder=""></div>
+        <div class="field"><label>Chargeable Weight</label><input type="text" id="e_chargeable" placeholder=""></div>
+      </div>
+      <div class="fields-grid cols-2" style="margin-bottom:12px;">
+        <div class="field">
+          <label>Booking Source</label>
+          <div class="bsource-wrap" id="e_bsource_wrap">
+            <button type="button" class="bsource-btn selected" data-val="Airline Direct" onclick="selectBSource('e','Airline Direct')">Airline Direct</button>
+            <button type="button" class="bsource-btn" data-val="Pelicargo" onclick="selectBSource('e','Pelicargo')">Pelicargo</button>
+            <button type="button" class="bsource-btn" data-val="WebCargo" onclick="selectBSource('e','WebCargo')">WebCargo</button>
+            <button type="button" class="bsource-btn" data-val="Other" onclick="selectBSource('e','Other')">Other</button>
+          </div>
+          <input type="hidden" id="e_bsource_val" value="Airline Direct">
+          <div class="bsource-other-wrap" id="e_bsource_other_wrap">
+            <input type="text" id="e_bsource_other" placeholder="Specify booking source…">
+          </div>
+        </div>
+        <div class="cost-inline" style="align-self:end;">
+          <span class="cost-inline-label">✈️ Air Freight Charges ($)</span>
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="e_airfreight_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. DIMENSIONS & WEIGHT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">4 · Dimensions & Weight</span>
+      <button class="add-btn" onclick="addVolume('e')">+ Add Volume</button>
+    </div>
+    <div class="section-body">
+      <div class="vol-legend">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent)"></span>cm / kg</span>
+        <span style="color:var(--border-strong)">|</span>
+        <span style="display:flex;align-items:center;gap:5px;color:var(--imp)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--imp)"></span>in / lbs — auto-convert</span>
+      </div>
+      <div class="col-hdr-vols">
+        <span>Pcs</span><span>L (cm)</span><span>W (cm)</span><span>H (cm)</span>
+        <span class="in-hdr">L (in)</span><span class="in-hdr">W (in)</span><span class="in-hdr">H (in)</span>
+        <span>Wt (kg)</span><span class="in-hdr">Wt (lbs)</span>
+      </div>
+      <div id="e_vols"></div>
+      <div class="totals-bar">
+        <span class="tot-item">Pieces: <strong id="e_tot_pcs">—</strong></span>
+        <span class="tot-item">Gross Wt: <strong id="e_tot_kg">—</strong></span>
+        <span class="tot-item">(<strong id="e_tot_lbs">—</strong>)</span>
+        <span class="tot-item">Volume: <strong id="e_tot_vol">—</strong></span>
+        <span class="tot-item">Vol. Wt: <strong id="e_tot_volwt">—</strong></span>
+        <span class="chargeable-badge" id="e_chargeable_badge">✈️ Est. Chargeable: —</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. INLAND FREIGHT & PICK-UP -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">5 · Inland Freight & Pick-up</span></div>
+    <div class="section-body">
+      <div class="field" style="margin-bottom:12px;">
+        <label>P/U From</label>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="pu-toggle-row">
+            <button type="button" class="pu-toggle-btn active" id="e_pu_same_btn" onclick="setPUFrom('same')">Same as Shipper</button>
+            <button type="button" class="pu-toggle-btn" id="e_pu_other_btn" onclick="setPUFrom('other')">Other Address</button>
+          </div>
+          <div id="e_pu_other_wrap" style="display:none;">
+            <textarea id="e_pu_from_address" placeholder="Pick-up address..." style="min-height:56px;width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 9px;outline:none;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="fields-grid cols-3" style="margin-bottom:12px;">
+        <div class="field"><label>P/U Date</label><input type="text" id="e_pu_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>Transfer Date</label><input type="text" id="e_transfer_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field ac-wrap"><label>Trucking Company</label>
+          <input type="text" id="e_trucker" placeholder="" autocomplete="off" oninput="acFilter('e_trucker','trucker')">
+          <div class="ac-list" id="ac_e_trucker" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fields-grid cols-2" style="margin-bottom:12px;">
+        <div class="field">
+          <label>Carrier / Service</label>
+          <div class="carrier-wrap" id="e_carrier_wrap">
+            <button type="button" class="carrier-btn selected" data-val="FA" onclick="selectCarrier('e','FA')">FA</button>
+            <button type="button" class="carrier-btn" data-val="WWEX" onclick="selectCarrier('e','WWEX')">WWEX</button>
+            <button type="button" class="carrier-btn" data-val="UPS" onclick="selectCarrier('e','UPS')">UPS</button>
+            <button type="button" class="carrier-btn" data-val="EXFR" onclick="selectCarrier('e','EXFR')">EXFR</button>
+            <button type="button" class="carrier-btn" data-val="OTHER" onclick="selectCarrier('e','OTHER')">Other</button>
+          </div>
+          <input type="hidden" id="e_carrier_val" value="FA">
+        </div>
+        <div class="field"><label>CFS / Warehouse Station</label><input type="text" id="e_cfs" placeholder="e.g. MIA CFS, XPO Warehouse"></div>
+      </div>
+      <div class="fields-grid cols-2">
+        <div class="cost-inline">
+          <span class="cost-inline-label">💵 Inland Freight Cost ($)</span>
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="e_inland_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
+        </div>
+        <div class="cost-inline">
+          <span class="cost-inline-label">🏭 Warehouse / CFS Cost ($)</span>
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="e_cfs_cost" placeholder="0.00" oninput="sanitizeMoney(this)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. CHECKLIST -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">6 · Process Checklist</span>
+      <span id="e_chk_pct" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)">0 / 14</span>
+    </div>
+    <div class="section-body">
+      <div class="checklist-grid" id="e_checklist"></div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="e_prog_fill" style="width:0%"></div></div>
+        <div class="progress-info"><span id="e_prog_text">0 of 14 steps completed</span><span id="e_prog_pct">0%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. COMMENTS -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">7 · Comments / Notes</span></div>
+    <div class="section-body">
+      <textarea id="e_comments" placeholder="Special instructions, routing notes, history..." class="auto-resize" style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <!-- 8. LATEST UPDATE TO AGENT -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">8 · Latest Update to Agent</span></div>
+    <div class="section-body">
+      <textarea id="e_agent_update" class="auto-resize" placeholder="Write the latest update sent to the agent..." class="auto-resize" style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <!-- 9. REVENUE -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">9 · File Revenue & Profit</span></div>
+    <div class="section-body">
+      <div class="revenue-grid">
+        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="text" inputmode="decimal" id="e_revenue" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
+        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="text" inputmode="decimal" id="e_profit" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-back" onclick="showScreen('list')">← Back to List</button>
+    <button class="btn btn-primary" onclick="saveProcess('exp')">💾 Save</button>
+    <button class="btn btn-primary" onclick="saveProcess('exp',{close:true})">💾 Save & Close</button>
+    <button class="btn" onclick="exportPDF('exp')">↓ PDF</button>
+    <button class="btn btn-del" onclick="deleteCurrentProcess('exp')">🗑 Delete</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     IMPORT FORM
+═══════════════════════════════════ -->
+
+<div class="screen" id="screen-imp" style="display:none">
+  <div class="form-topbar imp-mode">
+    <div>
+      <div class="doc-label">Air Freight Shipment</div>
+      <div class="doc-main-title">Import <span class="imp-color">Cover</span></div>
+    </div>
+    <div class="form-topbar-right">
+      <select class="status-select" id="imp-status-select">
+        <option value="NEW">NEW</option><option value="QUOTE">QUOTE</option>
+        <option value="IN PROCESS">IN PROCESS</option><option value="CLOSED">CLOSED</option>
+        <option value="ON HOLD">ON HOLD</option><option value="CANCELLED">CANCELLED</option>
+        <option value="MISC/TRUCKING">MISCELLANEOUS/TRUCKING</option>
+      </select>
+      <div class="file-number-display imp" id="imp-file-display">—</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-hint);margin-top:4px" id="imp-days-open"></div>
+    </div>
+  </div>
+
+  <!-- IMP 1. IDENTIFICATION -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">1 · Identification</span></div>
+    <div class="section-body">
+      <!-- Row 1: File, MAWB, HAWB, Airline -->
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field"><label class=>IES File Number</label>
+          <input type="text" id="i_file_number" placeholder="e.g. IMP-2024-001" oninput="document.getElementById('imp-file-display').textContent=this.value||'—'">
+        </div>
+        <div class="field"><label class=>MAWB</label><input type="text" id="i_mawb" placeholder="e.g. 123-45678901"></div>
+        <div class="field"><label>HAWB</label><input type="text" id="i_hawb" placeholder="e.g. HBL-0001"></div>
+        <div class="field ac-wrap"><label>Airline</label>
+          <input type="text" id="i_airline" placeholder="e.g. AA, LATAM" autocomplete="off" oninput="acFilter('i_airline','airline')">
+          <div class="ac-list" id="ac_i_airline" style="display:none"></div>
+        </div>
+      </div>
+      <!-- Row 2: Origin, Dest, Agent, Broker, Reference -->
+      <div class="fields-grid cols-5" style="margin-bottom:10px">
+        <div class="field"><label class=>Origin Airport</label><input type="text" id="i_origin" placeholder="GRU" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field"><label class=>Destination Airport</label><input type="text" id="i_dest" placeholder="MIA" style="text-transform:uppercase" maxlength="3"></div>
+        <div class="field ac-wrap"><label>Agent</label>
+          <input type="text" id="i_agent" placeholder="" autocomplete="off" oninput="acFilter('i_agent','agent')">
+          <div class="ac-list" id="ac_i_agent" style="display:none"></div>
+        </div>
+        <div class="field ac-wrap"><label>Customs Broker</label>
+          <input type="text" id="i_customs_broker" placeholder="" autocomplete="off" oninput="acFilter('i_customs_broker','broker')">
+          <div class="ac-list" id="ac_i_customs_broker" style="display:none"></div>
+        </div>
+        <div class="field"><label>Reference</label><input type="text" id="i_reference" placeholder="Client ref, PO…"></div>
+      </div>
+      <!-- Row 3: ETA (highlighted), Cargo Type, Incoterm, IES File -->
+      <div class="fields-grid cols-4" style="margin-bottom:10px">
+        <div class="field eta-highlight">
+          <label style="color:var(--imp);font-weight:700;">📅 Estimated ETA</label>
+          <input type="text" id="i_eta_id" placeholder="MM/DD/YYYY" class="datepick" oninput="syncETA(this.value)" onchange="syncETA(this.value)">
+        </div>
+        <div class="field"><label>Cargo Type</label>
+          <div class="toggle-group">
+            <label id="i_lbl_nondg" class="active" onclick="iDG(false)"><input type="radio" name="i_dg" value="non-dg" checked><span>NON-DG</span></label>
+            <label id="i_lbl_dg" onclick="iDG(true)"><input type="radio" name="i_dg" value="dg"><span>DG</span></label>
+          </div>
+        </div>
+        <div class="field"><label>Incoterm</label>
+          <select id="i_incoterm">
+            <option value="">— select —</option><option value="DDP">DDP</option><option value="DAP">DAP</option>
+            <option value="CFR">CFR</option><option value="EXW">EXW</option>
+          </select>
+        </div>
+        <div class="field"><label>IES File</label>
+          <div class="toggle-group">
+            <label id="i_lbl_ies_yes" class="active" onclick="iT('i_lbl_ies_yes','i_lbl_ies_no')"><input type="radio" name="i_ies" value="yes" checked><span>YES</span></label>
+            <label id="i_lbl_ies_no" onclick="iT('i_lbl_ies_no','i_lbl_ies_yes')"><input type="radio" name="i_ies" value="no"><span>NO</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="dg-subtype-row" id="i_dg_row">
+        <span class="dg-row-label">⚠ DG TYPE:</span>
+        <div class="toggle-group" style="max-width:180px">
+          <label id="i_lbl_pax" class="active-dg" onclick="iDGT('pax')"><input type="radio" name="i_dgsub" value="pax" checked><span>PAX</span></label>
+          <label id="i_lbl_cao" onclick="iDGT('cao')"><input type="radio" name="i_dgsub" value="cao"><span>CAO</span></label>
+        </div>
+        <div class="field" style="max-width:300px;margin-left:12px">
+          <label style="color:var(--dg-text)">DG Description / UN Number</label>
+          <input type="text" id="i_dg_desc" placeholder="e.g. Lithium Batteries UN3481">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMP 2. SHIPPER & CONSIGNEE (igual ao export) -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">2 · Shipper & Consignee</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-2">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field ac-wrap">
+            <label class=>Shipper</label>
+            <input type="text" id="i_shipper" placeholder="Company name" autocomplete="off" oninput="acFilter('i_shipper','shipper')">
+            <div class="ac-list" id="ac_i_shipper" style="display:none"></div>
+          </div>
+          <div class="field"><label>Shipper Address</label><textarea id="i_shipper_address" placeholder="Street, City, State, ZIP, Country" style="min-height:64px;"></textarea></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="field ac-wrap">
+            <label class=>Consignee</label>
+            <input type="text" id="i_consignee" placeholder="Company name" autocomplete="off" oninput="acFilter('i_consignee','consignee')">
+            <div class="ac-list" id="ac_i_consignee" style="display:none"></div>
+          </div>
+          <div class="field"><label>Consignee Address</label><textarea id="i_consignee_address" placeholder="Street, City, State, ZIP, Country" style="min-height:64px;"></textarea></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMP 3. DATES & SCHEDULING (sem Flight Schedule) -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">3 · Dates & Scheduling</span></div>
+    <div class="section-body">
+      <div class="fields-grid cols-5" style="margin-bottom:12px;">
+        <div class="field"><label>P/U Date</label><input type="text" id="i_pu_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field"><label>P/U From</label><input type="text" id="i_pu_from" placeholder="Address / city"></div>
+        <div class="field"><label>Transfer Date</label><input type="text" id="i_transfer_date" placeholder="MM/DD/YYYY" class="datepick"></div>
+        <div class="field eta-highlight">
+          <label style="color:var(--imp);font-weight:700;">📅 ETA</label>
+          <input type="text" id="i_eta" placeholder="Synced from Section 1" readonly tabindex="-1" style="background:var(--bg);color:var(--text-hint);cursor:default" title="Edited in Section 1 (Identification)">
+        </div>
+        <div class="field"><label>Last Free Day</label><input type="text" id="i_last_free_day" placeholder="MM/DD/YYYY" class="datepick"></div>
+      </div>
+      <div class="fields-grid cols-3" style="margin-bottom:12px;">
+        <div class="field ac-wrap"><label>Trucker</label>
+          <input type="text" id="i_trucker" placeholder="" autocomplete="off" oninput="acFilter('i_trucker','trucker')">
+          <div class="ac-list" id="ac_i_trucker" style="display:none"></div>
+        </div>
+        <div class="field"><label>Warehouse / CFS Transfer Station</label><input type="text" id="i_cfs" placeholder="e.g. MIA CFS, XPO"></div>
+        <div class="field"><label>CASS Weight (kg)</label><input type="text" id="i_cass_weight" placeholder=""></div>
+      </div>
+      <div class="fields-grid cols-2">
+        <div class="cost-inline">
+          <span class="cost-inline-label">💵 Inland Freight Cost ($)</span>
+          <input class="cost-inline-input" type="text" inputmode="decimal" id="i_inland_cost" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()">
+        </div>
+        <div class="field"><label>Chargeable Weight</label><input type="text" id="i_chargeable" placeholder=""></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMP 4. DIMENSIONS & WEIGHT -->
+  <div class="section">
+    <div class="section-header imp-hdr">
+      <span class="section-title">4 · Dimensions & Weight</span>
+      <button class="add-btn" onclick="addVolume('i')">+ Add Volume</button>
+    </div>
+    <div class="section-body">
+      <div class="vol-legend">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent)"></span>cm / kg</span>
+        <span style="color:var(--border-strong)">|</span>
+        <span style="display:flex;align-items:center;gap:5px;color:var(--imp)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--imp)"></span>in / lbs — auto-convert</span>
+      </div>
+      <div class="col-hdr-vols">
+        <span>Pcs</span><span>L (cm)</span><span>W (cm)</span><span>H (cm)</span>
+        <span class="in-hdr">L (in)</span><span class="in-hdr">W (in)</span><span class="in-hdr">H (in)</span>
+        <span>Wt (kg)</span><span class="in-hdr">Wt (lbs)</span>
+      </div>
+      <div id="i_vols"></div>
+      <div class="totals-bar">
+        <span class="tot-item">Pieces: <strong id="i_tot_pcs">—</strong></span>
+        <span class="tot-item">Gross Wt: <strong id="i_tot_kg">—</strong></span>
+        <span class="tot-item">(<strong id="i_tot_lbs">—</strong>)</span>
+        <span class="tot-item">Volume: <strong id="i_tot_vol">—</strong></span>
+        <span class="tot-item">Vol. Wt: <strong id="i_tot_volwt">—</strong></span>
+        <span class="chargeable-badge imp" id="i_chargeable_badge">✈️ Est. Chargeable: —</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMP 5. CHECKLIST -->
+  <div class="section">
+    <div class="section-header imp-hdr">
+      <span class="section-title">5 · Process Checklist</span>
+      <span id="i_chk_pct" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-hint)">0 / 13</span>
+    </div>
+    <div class="section-body">
+      <div class="checklist-grid" id="i_checklist"></div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="i_prog_fill" style="width:0%"></div></div>
+        <div class="progress-info"><span id="i_prog_text">0 of 13 steps completed</span><span id="i_prog_pct">0%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMP 6. STATION FEES -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">6 · Station Fees — Payables</span></div>
+    <div class="section-body">
+      <div class="fees-grid">
+        <div class="fee-row"><span class="fee-label">CFS Station ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_cfs" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Airline Fee ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_airline" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Storage ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_storage" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Waiting Time ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_waiting" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Magic / Customs ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_customs" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Other ($)</span><input class="fee-input" type="text" inputmode="decimal" id="i_fee_other" placeholder="0.00" oninput="sanitizeMoney(this);calcFeesTotal()"></div>
+        <div class="fee-row"><span class="fee-label">Inland Freight ($) <span style="font-size:9px;color:var(--text-hint);text-transform:none;letter-spacing:0">· auto (§3)</span></span><input class="fee-input" type="text" id="i_fee_inland_auto" readonly tabindex="-1" placeholder="0.00" style="background:var(--surface2);color:var(--text-muted);cursor:default" title="Copiado de Inland Freight Cost (Seção 3 · Dates & Scheduling). Edite lá."></div>
+      </div>
+      <div class="fees-total-bar">
+        <span class="fees-total-label">Total Payables:</span>
+        <span class="fees-total-value" id="i_fees_total">$ 0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMP 7. COMMENTS -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">7 · Comments / Notes</span></div>
+    <div class="section-body">
+      <textarea id="i_comments" placeholder="Special instructions, customs notes, history..." class="auto-resize" style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <!-- IMP 8. LATEST UPDATE TO AGENT -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">8 · Latest Update to Agent</span></div>
+    <div class="section-body">
+      <textarea id="i_agent_update" class="auto-resize" placeholder="Write the latest update sent to the agent..." class="auto-resize" style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <!-- IMP 9. REVENUE -->
+  <div class="section">
+    <div class="section-header imp-hdr"><span class="section-title">9 · File Revenue & Profit</span></div>
+    <div class="section-body">
+      <div class="revenue-grid">
+        <div class="rev-card"><div class="rev-label">File Revenue ($)</div><input type="text" inputmode="decimal" id="i_revenue" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
+        <div class="rev-card"><div class="rev-label">File Profit ($)</div><input type="text" inputmode="decimal" id="i_profit" placeholder="0.00" oninput="sanitizeMoney(this)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-back imp" onclick="showScreen('list')">← Back to List</button>
+    <button class="btn btn-primary imp" onclick="saveProcess('imp')">💾 Save</button>
+    <button class="btn btn-primary imp" onclick="saveProcess('imp',{close:true})">💾 Save & Close</button>
+    <button class="btn" onclick="exportPDF('imp')">↓ PDF</button>
+    <button class="btn btn-del" onclick="deleteCurrentProcess('imp')">🗑 Delete</button>
+  </div>
+</div>
+
+
+<script>
+// ============================================
+// SUPABASE CONFIGURATION
+// ============================================
+const SUPABASE_URL = 'https://swssbmixursxuslgssql.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3c3NibWl4dXJzeHVzbGdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjUxNDIsImV4cCI6MjA5MjkwMTE0Mn0.QPuGtqjWC5ZXkibf69OC2rBCDvkIZKDLlyQXlCpvVCw';
+let supa = null;
+let cloudReady = false;
+
+// ============================================
+// STATE
+// ============================================
+let processes = [];
+let companies = [];
+let currentEdit = { mode: null, id: null };
+let saveTimers = {};
+
+
+const EXP_CHECKLIST=[
+  {key:'nomination',    label:'Nomination'},
+  {key:'cargo_ready',   label:'Cargo Readiness'},
+  {key:'airline_book',  label:'Airline Booking'},
+  {key:'pickup_sched',  label:'Pickup Scheduled'},
+  {key:'pickup_conf',   label:'Pickup Confirmed'},
+  {key:'drop_inst',     label:'Drop Instructions Sent to Trucker'},
+  {key:'drop_reminder', label:'Drop Reminder'},
+  {key:'airline_cargo', label:'Airline Has the Cargo'},
+  {key:'prealert',      label:'Pre-alert Sent'},
+  {key:'departure_date',label:'Departure Date'},
+  {key:'dn_sent',       label:'DN Sent'},
+  {key:'files_list',    label:'Files List'},
+  {key:'files_log',     label:'Files Log'},
+  {key:'file_closed',   label:'File Closed'},
+];
+// IMP_CHECKLIST now has 13 items (Files Log added before File Closed)
+const IMP_CHECKLIST=[
+  {key:'nomination',      label:'Nomination'},
+  {key:'cargo_arrival',   label:'Cargo Arrival'},
+  {key:'customs_clear',   label:'Customs Clearance'},
+  {key:'payment_fees',    label:'Payment of Fees'},
+  {key:'recovery_sched',  label:'Recovery Scheduling'},
+  {key:'cargo_on_hand',   label:'Cargo on Hand'},
+  {key:'consignee_deliv', label:'Consignee Delivery Scheduling'},
+  {key:'est_delivery',    label:'Estimated Delivery Date to Consignee'},
+  {key:'cargo_del_conf',  label:'Cargo Delivery Confirmation'},
+  {key:'pod_sent',        label:'POD Sent to Agent'},
+  {key:'dn_sent',         label:'DN Sent to Agent'},
+  {key:'files_log',       label:'Files Log'},
+  {key:'file_closed',     label:'File Closed'},
+];
+
+// ============================================
+// UTILS
+// ============================================
+function $(id){return document.getElementById(id);}
+
+// ── ETA sync: Section 1 field is the editable home; dates-section field mirrors it ──
+function syncETA(v){
+  var el = document.getElementById('i_eta');
+  if(el) el.value = v;
+}
+
+// ── Monetary input helper ──
+// Accepts both "1234.56" and "1234,56" — normalises to dot, strips non-numeric chars
+function sanitizeMoney(el){
+  var v = el.value;
+  // Allow: digits, dot, comma, minus
+  v = v.replace(/[^0-9.,\-]/g, '');
+  // Replace comma with dot
+  v = v.replace(',', '.');
+  // Remove extra dots (keep only first)
+  var parts = v.split('.');
+  if(parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+  el.value = v;
+}
+function showLoading(t){$('loading-text').textContent=t||'Loading...';$('loading-overlay').classList.add('show');}
+function hideLoading(){$('loading-overlay').classList.remove('show');}
+function setSync(state,msg){
+  const el=$('sync-status');
+  el.className='sync-status '+state;
+  el.textContent=msg;
+}
+function showSaveToast(){
+  const t=$('save-toast-nav');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1800);
+}
+function fmtDate(d){
+  if(!d)return'';
+  const dt=(d instanceof Date)?d:new Date(d);
+  if(isNaN(dt))return'';
+  return(dt.getMonth()+1).toString().padStart(2,'0')+'/'+dt.getDate().toString().padStart(2,'0')+'/'+dt.getFullYear();
+}
+function parseDate(s){
+  if(!s)return null;
+  const p=s.split('/');
+  if(p.length!==3)return null;
+  const d=new Date(+p[2],+p[0]-1,+p[1]);
+  return isNaN(d)?null:d;
+}
+function uid(){return 'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
+function num(v){const n=parseFloat(String(v||'').replace(',','.'));return isNaN(n)?0:n;}
+function roundIATA(kg){
+  // IATA: round up to nearest 0.5 kg
+  return Math.ceil(kg*2)/2;
+}
+
+// ============================================
+// SUPABASE INIT
+// ============================================
+async function initSupabase(){
+  if(!SUPABASE_URL || SUPABASE_URL.includes('YOUR_PROJECT')){
+    setSync('err','⚠ Setup needed');
+    cloudReady = false;
+    loadLocal();
+    return;
+  }
+
+  if(!SUPABASE_KEY || !SUPABASE_KEY.startsWith('eyJ')){
+    console.error('Supabase init failed: invalid API key format. Use the "anon public" JWT key from Project Settings → API, not a publishable key.');
+    setSync('err','✗ Invalid API key');
+    cloudReady = false;
+    loadLocal();
+    return;
+  }
+
+  try{
+    supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    setSync('saving','⏳ Loading…');
+
+    await loadFromCloud();
+
+    cloudReady = true;
+    setSync('ok','☁ Connected');
+
+   // checkLocalData();
+
+  }catch(e){
+    const msg = e?.message || e?.error_description || JSON.stringify(e);
+    console.error('Supabase init failed:', msg, e);
+
+    setSync('err','✗ Offline mode');
+    cloudReady = false;
+
+    loadLocal();
+  }
+}
+
+
+async function loadFromCloud(){
+  const { data: procs, error: e1 } = await supa
+    .from('processes')
+    .select('*')
+    .order('saved_at', { ascending: false });
+
+  if(e1) throw e1;
+
+  processes = (procs || []).map(rowToProcess);
+  window.processes = processes;
+
+  const { data: comps, error: e2 } = await supa
+    .from('companies')
+    .select('*')
+    .order('name');
+
+  if(e2) throw e2;
+
+  companies = (comps || []).map(c => ({
+    id: c.id,
+    name: c.name,
+    // New: types array. Fallback to legacy single `type` string.
+    types: Array.isArray(c.types) ? c.types
+           : (c.types ? [c.types] : (c.type ? [c.type] : [])),
+    type: c.type, // kept for legacy safety
+    // New: dedicated address column. Fallback to legacy notes-as-address.
+    address: c.address || '',
+    contact: c.contact,
+    phone: c.phone,
+    notes: c.notes
+  }));
+
+  renderTable();
+  renderCompanyList();
+
+  if(typeof renderDashboard === 'function'){
+    renderDashboard();
+  }
+}
+
+
+/**
+ * Verifica se uma string parece UUID.
+ * Isso evita tentar inserir um id inválido em uma coluna uuid.
+ */
+function isUuid(value){
+  return typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+
+/**
+ * Procura um processo existente no Supabase.
+ * Prioridade:
+ * 1. key
+ * 2. id, se for UUID válido
+ */
+async function findExistingProcessRow(row){
+  if(row?.key){
+    const { data, error } = await supa
+      .from('processes')
+      .select('*')
+      .eq('key', row.key)
+      .limit(1)
+      .maybeSingle();
+
+    if(error) throw error;
+    if(data) return data;
+  }
+
+  if(row?.id && isUuid(row.id)){
+    const { data, error } = await supa
+      .from('processes')
+      .select('*')
+      .eq('id', row.id)
+      .limit(1)
+      .maybeSingle();
+
+    if(error) throw error;
+    if(data) return data;
+  }
+
+  return null;
+}
+
+
+/**
+ * Salva um processo no Supabase sem gerar erro 409.
+ *
+ * Comportamento padrão:
+ * - Se já existe a mesma key no Supabase: atualiza esse registro.
+ * - Se não existe: insere novo registro.
+ *
+ * Use preserveExisting:true em migração/importação para NÃO sobrescrever
+ * nada que já existe no Supabase.
+ */
+async function saveProcessRowCloud(row, options = {}){
+  const { preserveExisting = false } = options;
+
+  if(!cloudReady || !supa){
+    throw new Error('Supabase is not ready.');
+  }
+
+  if(!row){
+    throw new Error('Invalid process row.');
+  }
+
+  const safeRow = { ...row };
+
+  if(!safeRow.key){
+    throw new Error('Cannot save process without key.');
+  }
+
+  const now = new Date().toISOString();
+  safeRow.saved_at = now;
+
+  const existing = await findExistingProcessRow(safeRow);
+
+  /**
+   * Se já existe no Supabase:
+   * - Em salvamento normal: atualiza.
+   * - Em migração/restauração com preserveExisting:true: mantém o que está na nuvem.
+   */
+  if(existing){
+    if(preserveExisting){
+      return {
+        data: existing,
+        skipped: true,
+        reason: 'Already exists in Supabase'
+      };
+    }
+
+    const updateRow = { ...safeRow };
+
+    /**
+     * Não atualizamos o id.
+     * Isso evita conflito de primary key e preserva o id original do Supabase.
+     */
+    delete updateRow.id;
+
+    /**
+     * Não alteramos created_at.
+     * O histórico original do Supabase fica preservado.
+     */
+    delete updateRow.created_at;
+
+    const { data, error } = await supa
+      .from('processes')
+      .update(updateRow)
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if(error) throw error;
+
+    return {
+      data,
+      updated: true
+    };
+  }
+
+  /**
+   * Se não existe no Supabase, vamos inserir.
+   * Mas antes garantimos que o id não cause conflito.
+   */
+
+  if(safeRow.id && !isUuid(safeRow.id)){
+    delete safeRow.id;
+  }
+
+  if(safeRow.id && isUuid(safeRow.id)){
+    const { data: sameId, error: idError } = await supa
+      .from('processes')
+      .select('*')
+      .eq('id', safeRow.id)
+      .limit(1)
+      .maybeSingle();
+
+    if(idError) throw idError;
+
+    /**
+     * Se existe outro registro com o mesmo id, mas outra key,
+     * removemos o id para o Supabase gerar um novo.
+     * Assim não perdemos nem sobrescrevemos o registro antigo.
+     */
+    if(sameId && sameId.key !== safeRow.key){
+      delete safeRow.id;
+    }
+  }
+
+  if(!safeRow.created_at){
+    delete safeRow.created_at;
+  }
+
+  const { data, error } = await supa
+    .from('processes')
+    .insert(safeRow)
+    .select()
+    .single();
+
+  if(error){
+    /**
+     * Proteção extra contra condição de corrida:
+     * se outro save criou o registro ao mesmo tempo, tentamos atualizar.
+     */
+    if(error.code === '23505' || String(error.message || '').toLowerCase().includes('duplicate')){
+      const existingAfterConflict = await findExistingProcessRow(safeRow);
+
+      if(existingAfterConflict){
+        if(preserveExisting){
+          return {
+            data: existingAfterConflict,
+            skipped: true,
+            reason: 'Already exists in Supabase after conflict'
+          };
+        }
+
+        const updateRow = { ...safeRow };
+        delete updateRow.id;
+        delete updateRow.created_at;
+
+        const { data: updatedData, error: updateError } = await supa
+          .from('processes')
+          .update(updateRow)
+          .eq('id', existingAfterConflict.id)
+          .select()
+          .single();
+
+        if(updateError) throw updateError;
+
+        return {
+          data: updatedData,
+          updated: true,
+          recoveredFromConflict: true
+        };
+      }
+    }
+
+    throw error;
+  }
+
+  return {
+    data,
+    inserted: true
+  };
+}
+
+
+/**
+ * Salva vários processos com segurança.
+ *
+ * Para migração/restauração, use:
+ * saveProcessRowsCloud(rows, { preserveExisting: true })
+ */
+async function saveProcessRowsCloud(rows, options = {}){
+  const results = [];
+  const seenKeys = new Set();
+
+  for(const row of rows || []){
+    if(!row || !row.key) continue;
+
+    /**
+     * Evita tentar salvar duas vezes a mesma key no mesmo lote.
+     */
+    if(seenKeys.has(row.key)){
+      results.push({
+        key: row.key,
+        skipped: true,
+        reason: 'Duplicate key in current batch'
+      });
+      continue;
+    }
+
+    seenKeys.add(row.key);
+
+    const result = await saveProcessRowCloud(row, options);
+    results.push(result);
+  }
+
+  return results;
+}
+
+// Normaliza volumes do banco {kg,lbs,vols} para o formato da UI {wkg,wlbs,...}
+function normalizeVolumes(vols){
+  if(!vols) return [];
+  if(!Array.isArray(vols)) return [];
+  return vols.map(v => {
+    if(!v || typeof v !== 'object') return {};
+    return {
+      pcs:  String(v.pcs  ?? ''),
+      lcm:  String(v.lcm  ?? ''),
+      wcm:  String(v.wcm  ?? ''),
+      hcm:  String(v.hcm  ?? ''),
+      lin:  String(v.lin  ?? ''),
+      win:  String(v.win  ?? ''),
+      hin:  String(v.hin  ?? ''),
+      wkg:  String(v.wkg  ?? v.kg  ?? ''),
+      wlbs: String(v.wlbs ?? v.lbs ?? '')
+    };
+  });
+}
+
+
+// Normaliza checklist para o formato {chk_N:{done,date}} que o app usa
+// Named-key to chk_N mapping for legacy data
+const EXP_CHK_KEYS=['nomination','cargo_ready','airline_book','pickup_sched','pickup_conf','drop_inst','drop_reminder','airline_cargo','prealert','departure_date','dn_sent','files_list','files_log','file_closed'];
+const IMP_CHK_KEYS=['nomination','cargo_arrival','customs_clear','payment_fees','recovery_sched','cargo_on_hand','consignee_deliv','est_delivery','cargo_del_conf','pod_sent','dn_sent','files_log','file_closed'];
+
+function normalizeChecklist(raw, mode){
+  if(!raw) return {};
+  if(typeof raw === 'string'){ try{ raw = JSON.parse(raw); }catch(e){ return {}; } }
+  if(typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const keys = Object.keys(raw);
+  if(!keys.length) return {};
+  // Already chk_N format
+  if(keys.some(k => k.startsWith('chk_'))){
+    const out = {};
+    keys.forEach(k => {
+      const v = raw[k];
+      if(v && typeof v === 'object') out[k] = {done: !!(v.done||v.checked), date: v.date||''};
+      else out[k] = {done: !!v, date: ''};
+    });
+    return out;
+  }
+  // Named-key format (legacy) — map to chk_N
+  const keyMap = (mode === 'imp') ? IMP_CHK_KEYS : EXP_CHK_KEYS;
+  const out = {};
+  keyMap.forEach((name, i) => {
+    const v = raw[name];
+    if(v && typeof v === 'object') out['chk_'+i] = {done: !!(v.done||v.checked), date: v.date||''};
+    else out['chk_'+i] = {done: !!v, date: ''};
+  });
+  return out;
+}
+function rowToProcess(r){
+  // DB table: id/key, mode, status, data(JSONB), created_at, saved_at
+  const mode = r.mode || '';
+  const pfx  = mode === 'imp' ? 'i_' : 'e_';
+
+  // Flatten r.data (strip e_/i_ prefix) into src
+  const src = {};
+  if(r.data && typeof r.data === 'object'){
+    Object.keys(r.data).forEach(k => {
+      const nk = k.startsWith(pfx) ? k.slice(pfx.length) : k;
+      src[nk] = r.data[k];
+    });
+  }
+  // Also pick top-level camelCase fields (backup/migration format), top-level wins
+  ['id','mode','status','fileNumber','mawb','hawb','airline','origin','dest','agent',
+   'reference','dg','dgDesc','security','lv','shipper','shipperAddress','consignee',
+   'consigneeAddress','legs','cutoff','departure','eta','cassWeight','chargeable',
+   'bookingSource','airfreightCost','volumes','puFromMode','puFromAddress','puDate',
+   'transferDate','trucker','carrier','cfs','inlandCost','cfsCost','customsBroker',
+   'incoterm','ies','feeOther','feeCfs','feeAirline','feeStorage','feeWaiting',
+   'feeCustoms','checklist','comments','revenue','profit','createdAt','updatedAt',
+   'declaredValue','htsCode','aesItn','dgType','lastFreeDay','puFrom','closedAt'].forEach(k => {
+    if(r[k] !== null && r[k] !== undefined) src[k] = r[k];
+  });
+
+  return {
+    id:            r.id || r.key || src.id,
+    key:           r.key || src.key || '',
+    mode:          mode,
+    status:        r.status  || src.status || 'NEW',
+    fileNumber:    src.fileNumber  || src.file_number  || '',
+    mawb:          src.mawb        || '',
+    hawb:          src.hawb        || '',
+    airline:       src.airline     || '',
+    origin:        src.origin      || '',
+    dest:          src.dest        || '',
+    agent:         src.agent       || '',
+    reference:     src.reference   || '',
+    dg:            src.dg          || 'non-dg',
+    dgType:        src.dgType      || src.dg_type || 'pax',
+    dgDesc:        src.dgDesc      || src.dg_desc || '',
+    security:      src.security    || 'known',
+    lv:            src.lv          || 'yes',
+    declaredValue: src.declaredValue || src.declared_value || '',
+    htsCode:       src.htsCode     || src.hts_code || '',
+    aesItn:        src.aesItn      || src.aes_itn  || '',
+    shipper:       src.shipper     || '',
+    shipperAddress:src.shipperAddress || src.shipper_address || '',
+    consignee:     src.consignee   || '',
+    consigneeAddress: src.consigneeAddress || src.consignee_address || '',
+    legs:          src.legs        || [],
+    cutoff:        src.cutoff      || '',
+    departure:     src.departure   || '',
+    eta:           src.eta         || '',
+    cassWeight:    src.cassWeight  || src.cass_weight  || '',
+    chargeable:    src.chargeable  || '',
+    bookingSource: src.bookingSource || src.booking_source || 'Airline Direct',
+    airfreightCost:src.airfreightCost || src.airfreight_cost || '',
+    volumes:       normalizeVolumes(src.volumes || src.vols),
+    puFromMode:    src.puFromMode  || src.pu_from_mode || 'same',
+    puFromAddress: src.puFromAddress || src.pu_from_address || '',
+    puDate:        src.puDate      || src.pu_date || '',
+    transferDate:  src.transferDate|| src.transfer_date || '',
+    trucker:       src.trucker     || '',
+    carrier:       src.carrier     || 'FA',
+    cfs:           src.cfs         || '',
+    inlandCost:    src.inlandCost  || src.inland_cost || '',
+    cfsCost:       src.cfsCost     || src.cfs_cost    || '',
+    customsBroker: src.customsBroker || src.customs_broker || '',
+    incoterm:      src.incoterm    || '',
+    ies:           src.ies         || 'yes',
+    lastFreeDay:   src.lastFreeDay || src.last_free_day || '',
+    puFrom:        src.puFrom      || src.pu_from       || '',
+    closedAt:      src.closedAt    || src.closed_at     || '',
+    feeOther:      src.feeOther    || src.fee_other    || '',
+    feeCfs:        src.feeCfs      || src.fee_cfs      || '',
+    feeAirline:    src.feeAirline  || src.fee_airline  || '',
+    feeStorage:    src.feeStorage  || src.fee_storage  || '',
+    feeWaiting:    src.feeWaiting  || src.fee_waiting  || '',
+    feeCustoms:    src.feeCustoms  || src.fee_customs  || '',
+    checklist:     normalizeChecklist(src.checklist, mode),
+    comments:      src.comments    || '',
+    agentUpdate:   r.latest_update_to_agent || src.agentUpdate || src.agent_update || '',
+    revenue:       src.revenue     || '',
+    profit:        src.profit      || '',
+    createdAt:     r.created_at    || src.createdAt || '',
+    updatedAt:     r.saved_at      || r.updated_at  || src.updatedAt || '',
+  };
+}
+function processToRow(p) {
+  // Use stable key for existing processes so upsert updates instead of inserting
+  let key;
+  if (p.key && String(p.key).startsWith('afm_proc_')) {
+    key = p.key;
+  } else if (p.id && !String(p.id).startsWith('p_')) {
+    key = 'afm_proc_' + p.mode + '_' + p.id;
+  } else {
+    const now = new Date();
+    const ts = String(now.getFullYear()) +
+      String(now.getMonth()+1).padStart(2,'0') +
+      String(now.getDate()).padStart(2,'0') + '_' +
+      String(now.getHours()).padStart(2,'0') +
+      String(now.getMinutes()).padStart(2,'0') +
+      String(now.getSeconds()).padStart(2,'0');
+    key = 'afm_proc_' + p.mode + '_' + ts;
+  }
+
+  const pfx = p.mode === 'imp' ? 'i_' : 'e_';
+
+  // Build data object with prefixed keys (matching original DB format)
+  const data = {};
+  data[pfx + 'file_number'] = p.fileNumber || '';
+  data[pfx + 'mawb'] = p.mawb || '';
+  data[pfx + 'hawb'] = p.hawb || '';
+  data[pfx + 'airline'] = p.airline || '';
+  data[pfx + 'origin'] = p.origin || '';
+  data[pfx + 'dest'] = p.dest || '';
+  data[pfx + 'agent'] = p.agent || '';
+  data[pfx + 'reference'] = p.reference || '';
+  data[pfx + 'dg'] = p.dg || 'non-dg';
+  data[pfx + 'dg_type'] = p.dgType || 'pax';
+  data[pfx + 'dg_desc'] = p.dgDesc || '';
+  data['closed_at'] = p.closedAt || '';
+  data[pfx + 'shipper'] = p.shipper || '';
+  data[pfx + 'shipper_address'] = p.shipperAddress || '';
+  data[pfx + 'consignee'] = p.consignee || '';
+  data[pfx + 'consignee_address'] = p.consigneeAddress || '';
+  data['legs'] = p.legs || [];
+  data[pfx + 'cass_weight'] = p.cassWeight || '';
+  data[pfx + 'chargeable'] = p.chargeable || '';
+  data[pfx + 'airfreight_cost'] = p.airfreightCost || '';
+  data['vols'] = p.volumes || [];
+  data['checklist'] = p.checklist || {};
+  data[pfx + 'comments'] = p.comments || '';
+  data[pfx + 'revenue'] = p.revenue || '';
+  data[pfx + 'profit'] = p.profit || '';
+
+  if (p.mode === 'exp') {
+    data['e_lv'] = p.lv || 'yes';
+    data['e_security'] = p.security || 'known';
+    data['e_declared_value'] = p.declaredValue || '';
+    data['e_hts_code'] = p.htsCode || '';
+    data['e_aes_itn'] = p.aesItn || '';
+    data['e_cutoff'] = p.cutoff || '';
+    data['e_departure'] = p.departure || '';
+    data['e_booking_source'] = p.bookingSource || 'Airline Direct';
+    data['e_pu_from_mode'] = p.puFromMode || 'same';
+    data['e_pu_from_address'] = p.puFromAddress || '';
+    data['e_pu_date'] = p.puDate || '';
+    data['e_transfer_date'] = p.transferDate || '';
+    data['e_trucker'] = p.trucker || '';
+    data['e_carrier'] = p.carrier || 'FA';
+    data['e_cfs'] = p.cfs || '';
+    data['e_inland_cost'] = p.inlandCost || '';
+    data['e_cfs_cost'] = p.cfsCost || '';
+  } else {
+    data['i_incoterm'] = p.incoterm || '';
+    data['i_ies'] = p.ies || 'yes';
+    data['i_eta'] = p.eta || '';
+    data['i_customs_broker'] = p.customsBroker || '';
+    data['i_last_free_day'] = p.lastFreeDay || '';
+    data['i_pu_from'] = p.puFrom || '';
+    data['i_pu_date'] = p.puDate || '';
+    data['i_transfer_date'] = p.transferDate || '';
+    data['i_trucker'] = p.trucker || '';
+    data['i_cfs'] = p.cfs || '';
+    data['i_inland_cost'] = p.inlandCost || '';
+    data['i_fee_cfs'] = p.feeCfs || '';
+    data['i_fee_airline'] = p.feeAirline || '';
+    data['i_fee_storage'] = p.feeStorage || '';
+    data['i_fee_waiting'] = p.feeWaiting || '';
+    data['i_fee_customs'] = p.feeCustoms || '';
+    data['i_fee_other'] = p.feeOther || '';
+  }
+
+  return {
+    key: key, // Required field added here
+    id: p.id,
+    mode: p.mode,
+    status: p.status || 'NEW',
+    data: data,
+    saved_at: new Date().toISOString(),
+    latest_update_to_agent: p.agentUpdate || ''
+  };
+}
+
+// 🧹 Função utilitária — FORA do saveProcessCloud
+function sanitizeRow(obj){
+  const clean = {};
+  for(const k in obj){
+    let v = obj[k];
+
+    // pula undefined
+    if(v === undefined) continue;
+
+    // strings vazias viram null (evita erro em colunas date/numeric)
+    if(v === '') v = null;
+
+    // objetos aninhados (jsonb) – mantém como está
+    clean[k] = v;
+  }
+  return clean;
+}
+
+// 💾 Função principal de save
+async function saveProcessCloud(p){
+  if(!cloudReady){
+    saveLocal();
+    if(typeof renderDashboard === 'function') renderDashboard();
+    return;
+  }
+
+  // 👇 aplicando sanitização aqui
+  const row = sanitizeRow(processToRow(p));
+  setSync('saving','⏳ Saving…');
+
+  // 🔎 Log do payload para inspeção
+  console.log('📤 Payload enviado ao Supabase:', row);
+
+  const { data, error } = await supa
+    .from('processes')
+    .upsert(row)
+    .select();
+
+  if(error){
+    // 🔎 Detalhamento completo do erro
+    console.group('❌ Supabase Save Error');
+    console.error('message:', error.message);
+    console.error('details:', error.details);
+    console.error('hint:   ', error.hint);
+    console.error('code:   ', error.code);
+    console.error('payload:', JSON.stringify(row, null, 2));
+    console.groupEnd();
+
+    setSync('err', '✗ Save failed');
+    saveLocal();
+  } else {
+    if(data && data[0]){
+      const saved = data[0];
+      const idx = processes.findIndex(x => x.id === p.id);
+      if(idx >= 0){
+        if(saved.id)  processes[idx].id  = saved.id;
+        if(saved.key) processes[idx].key = saved.key;
+      }
+      if(saved.id && currentEdit && currentEdit.id === p.id) currentEdit.id = saved.id;
+    }
+    setSync('ok','☁ Saved');
+    saveLocal();
+    if(typeof renderDashboard === 'function') renderDashboard();
+    }
+}
+async function deleteProcessCloud(id){
+  if(!cloudReady)return;
+  setSync('saving','⏳ Deleting…');
+  const {error} = await supa.from('processes').delete().eq('id',id);
+  if(error){setSync('err','✗ Delete failed');return;}
+  setSync('ok','☁ Deleted');
+}
+
+async function saveCompanyCloud(c){
+  if(!cloudReady){saveLocalCompanies();return;}
+  const {error} = await supa.from('companies').upsert({
+    id:c.id, name:c.name,
+    types:c.types||[],
+    type:(c.types&&c.types[0])||c.type||null, // keep legacy column in sync
+    address:c.address||'',
+    contact:c.contact, phone:c.phone, notes:c.notes
+  });
+  if(error)console.error('Company save error:',error);
+}
+
+async function deleteCompanyCloud(id){
+  if(!cloudReady)return;
+  await supa.from('companies').delete().eq('id',id);
+}
+
+// ============================================
+// LOCAL STORAGE (FALLBACK)
+// ============================================
+function loadLocal(){
+  try{
+    const p = localStorage.getItem('afm_processes');
+    if(p)processes = JSON.parse(p);
+    const c = localStorage.getItem('afm_companies');
+    if(c){
+      companies = JSON.parse(c).map(x=>({
+        ...x,
+        types: Array.isArray(x.types) ? x.types : (x.type?[x.type]:[]),
+        address: x.address || ''
+      }));
+    }
+  }catch(e){console.error(e);}
+  renderTable();
+  renderCompanyList();
+}
+function saveLocal(){localStorage.setItem('afm_processes',JSON.stringify(processes));}
+function saveLocalCompanies(){localStorage.setItem('afm_companies',JSON.stringify(companies));}
+
+function checkLocalData(){
+  try{
+    const p = localStorage.getItem('afm_processes');
+    if(p){
+      const arr = JSON.parse(p);
+      if(arr && arr.length>0){
+        $('migrate-banner').style.display='flex';
+      }
+    }
+  }catch(e){}
+}
+async function migrateLocalToSupabase(){
+  if(!cloudReady){alert('Cloud not connected.');return;}
+  showLoading('Migrating to cloud…');
+  try{
+    const p = JSON.parse(localStorage.getItem('afm_processes')||'[]');
+    const c = JSON.parse(localStorage.getItem('afm_companies')||'[]');
+    for(const proc of p){
+      const row = processToRow(proc);
+      row.created_at = proc.createdAt || new Date().toISOString();
+      await supa.from('processes').upsert(row);
+    }
+    for(const comp of c){
+      await supa.from('companies').upsert({
+        id:comp.id, name:comp.name,
+        types:comp.types||(comp.type?[comp.type]:[]),
+        type:(comp.types&&comp.types[0])||comp.type||null,
+        address:comp.address||'',
+        contact:comp.contact, phone:comp.phone, notes:comp.notes
+      });
+    }
+    localStorage.removeItem('afm_processes');
+    localStorage.removeItem('afm_companies');
+    await loadFromCloud();
+    $('migrate-banner').style.display='none';
+    hideLoading();
+    alert('✓ Migration complete!');
+  }catch(e){
+    hideLoading();
+    alert('Migration failed: '+e.message);
+  }
+}
+function dismissMigrate(){$('migrate-banner').style.display='none';}
+
+// ============================================
+// SCREEN NAVIGATION
+// ============================================
+function showScreen(s){
+  document.querySelectorAll('.screen').forEach(x=>{
+    x.classList.remove('active');
+    x.style.display='none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
+  const target = $('screen-'+s);
+  if(target){
+    target.classList.add('active');
+    target.style.display='block';
+  }
+  if(s==='list'){$('tab-list').classList.add('active');renderTable();}
+  else if(s==='dash'){$('tab-dash').classList.add('active');renderDashboard();}
+  else if(s==='exp'){$('tab-exp-new').classList.add('active');}
+  else if(s==='imp'){$('tab-imp-new').classList.add('active');}
+  window.scrollTo(0,0);
+}
+
+// ============================================
+// COMPANIES
+// ============================================
+function openCompanies(){$('modal-companies').classList.add('open');resetCompanyForm();renderCompanyList();}
+function closeCompanies(){$('modal-companies').classList.remove('open');}
+async function saveCompany(){
+  const name = $('cm_name').value.trim();
+  if(!name){alert('Enter a company name.');return;}
+  const types = Array.from(document.querySelectorAll('#cm_types input[type=checkbox]:checked')).map(cb=>cb.value);
+  if(!types.length){alert('Select at least one type.');return;}
+  const editId = $('cm_edit_id').value;
+  if(editId){
+    // Editing an existing company
+    const c = companies.find(x=>x.id===editId);
+    if(c){
+      c.name = name;
+      c.types = types;
+      c.type = types[0];
+      c.address = $('cm_address').value.trim();
+      c.contact = $('cm_contact').value.trim();
+      c.phone = $('cm_phone').value.trim();
+      c.notes = $('cm_notes').value.trim();
+      await saveCompanyCloud(c);
+    }
+  } else {
+    const c = {
+      id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      name, types, type:types[0],
+      address:$('cm_address').value.trim(),
+      contact:$('cm_contact').value.trim(),
+      phone:$('cm_phone').value.trim(),
+      notes:$('cm_notes').value.trim()
+    };
+    companies.push(c);
+    await saveCompanyCloud(c);
+  }
+  saveLocalCompanies();
+  resetCompanyForm();
+  renderCompanyList();
+}
+function resetCompanyForm(){
+  ['cm_name','cm_address','cm_contact','cm_phone','cm_notes','cm_edit_id'].forEach(id=>{ if($(id))$(id).value=''; });
+  document.querySelectorAll('#cm_types input[type=checkbox]').forEach(cb=>cb.checked=false);
+  if($('cm_save_btn')) $('cm_save_btn').textContent='+ Add Company';
+}
+function editCompany(id){
+  const c = companies.find(x=>x.id===id);
+  if(!c) return;
+  $('cm_name').value = c.name||'';
+  $('cm_address').value = c.address||'';
+  $('cm_contact').value = c.contact||'';
+  $('cm_phone').value = c.phone||'';
+  $('cm_notes').value = c.notes||'';
+  $('cm_edit_id').value = c.id;
+  const tset = new Set(c.types && c.types.length ? c.types : (c.type?[c.type]:[]));
+  document.querySelectorAll('#cm_types input[type=checkbox]').forEach(cb=>{ cb.checked = tset.has(cb.value); });
+  if($('cm_save_btn')) $('cm_save_btn').textContent='✓ Save Changes';
+}
+function renderCompanyList(){
+  const wrap = $('company-list');
+  if(!companies.length){wrap.innerHTML='<div style="font-size:11px;color:var(--text-hint);text-align:center;padding:8px;">No companies yet.</div>';return;}
+  wrap.innerHTML = companies.map(c=>{
+    const tlist = (c.types && c.types.length) ? c.types : (c.type?[c.type]:[]);
+    const badges = tlist.map(t=>`<span class="cli-type">${escapeHtml(t)}</span>`).join(' ');
+    return `
+    <div class="company-list-item">
+      <span class="cli-name">${escapeHtml(c.name)}</span>
+      ${badges}
+      <button class="cli-del" onclick="editCompany('${c.id}')" title="Edit" style="margin-left:auto">✎</button>
+      <button class="cli-del" onclick="deleteCompany('${c.id}')" title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+async function deleteCompany(id){
+  if(!confirm('Delete this company?'))return;
+  companies = companies.filter(c=>c.id!==id);
+  await deleteCompanyCloud(id);
+  saveLocalCompanies();
+  renderCompanyList();
+}
+
+// ============================================
+// AUTOCOMPLETE
+// ============================================
+function acFilter(inputId,type){
+  const inp = $(inputId);
+  const list = $('ac_'+inputId);
+  const q = inp.value.trim().toLowerCase();
+  if(!q){list.style.display='none';return;}
+  const matches = companies.filter(c=>{
+    if(!c.name.toLowerCase().includes(q)) return false;
+    if(type==='any') return true;
+    const tlist = (c.types && c.types.length) ? c.types : (c.type?[c.type]:[]);
+    return tlist.includes(type);
+  }).slice(0,6);
+  if(!matches.length){list.style.display='none';return;}
+  list.innerHTML = matches.map(c=>{
+    const tlist = (c.types && c.types.length) ? c.types : (c.type?[c.type]:[]);
+    return `
+    <div class="ac-item" onclick="acPick('${inputId}','${escapeAttr(c.name)}','${c.id}')">
+      <span class="ac-item-name">${escapeHtml(c.name)}</span>
+      <span class="ac-item-type">${escapeHtml(tlist.join(', '))}</span>
+    </div>`;
+  }).join('');
+  list.style.display='block';
+}
+function acPick(inputId,name,companyId){
+  $(inputId).value = name;
+  $('ac_'+inputId).style.display='none';
+  // Auto-fill address — only for shipper/consignee fields, only when target is empty
+  const c = companies.find(x=>x.id===companyId);
+  if(c){
+    const addrMap = {
+      'e_shipper':'e_shipper_address','e_consignee':'e_consignee_address',
+      'i_shipper':'i_shipper_address','i_consignee':'i_consignee_address'
+    };
+    const addr = c.address || c.notes || ''; // dedicated address; legacy fallback to notes
+    if(addrMap[inputId] && addr){
+      const addrEl = $(addrMap[inputId]);
+      if(addrEl && !addrEl.value.trim()) addrEl.value = addr;
+    }
+  }
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ac-wrap')){
+    document.querySelectorAll('.ac-list').forEach(l=>l.style.display='none');
+  }
+  if(!e.target.closest('#multi-status-wrap')){
+    const dd=$('multi-status-dropdown');if(dd)dd.style.display='none';
+  }
+});
+function escapeHtml(s){return(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s){return(s||'').replace(/'/g,"\\'");}
+
+// ============================================
+// TOGGLES
+// ============================================
+function eT(a,b){$(a).classList.add('active');$(b).classList.remove('active');$(a).querySelector('input').checked=true;}
+function iT(a,b){$(a).classList.add('active');$(b).classList.remove('active');$(a).querySelector('input').checked=true;}
+function eDG(on){
+  if(on){$('e_lbl_dg').classList.add('active');$('e_lbl_nondg').classList.remove('active');$('e_dg_row').classList.add('visible');document.querySelector('input[name=e_dg][value=dg]').checked=true;}
+  else{$('e_lbl_nondg').classList.add('active');$('e_lbl_dg').classList.remove('active');$('e_dg_row').classList.remove('visible');document.querySelector('input[name=e_dg][value=non-dg]').checked=true;}
+}
+function iDG(on){
+  if(on){$('i_lbl_dg').classList.add('active');$('i_lbl_nondg').classList.remove('active');$('i_dg_row').classList.add('visible');document.querySelector('input[name=i_dg][value=dg]').checked=true;}
+  else{$('i_lbl_nondg').classList.add('active');$('i_lbl_dg').classList.remove('active');$('i_dg_row').classList.remove('visible');document.querySelector('input[name=i_dg][value=non-dg]').checked=true;}
+}
+function eDGT(t){
+  if(t==='pax'){$('e_lbl_pax').classList.add('active-dg');$('e_lbl_cao').classList.remove('active-dg');document.querySelector('input[name=e_dgsub][value=pax]').checked=true;}
+  else{$('e_lbl_cao').classList.add('active-dg');$('e_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=e_dgsub][value=cao]').checked=true;}
+}
+function iDGT(t){
+  if(t==='pax'){$('i_lbl_pax').classList.add('active-dg');$('i_lbl_cao').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=pax]').checked=true;}
+  else{$('i_lbl_cao').classList.add('active-dg');$('i_lbl_pax').classList.remove('active-dg');document.querySelector('input[name=i_dgsub][value=cao]').checked=true;}
+}
+function eLV(yes){
+  if(yes){$('e_lbl_lv_yes').classList.add('active');$('e_lbl_lv_no').classList.remove('active');$('e_lv_fields').classList.remove('visible');document.querySelector('input[name=e_lv][value=yes]').checked=true;}
+  else{$('e_lbl_lv_no').classList.add('active');$('e_lbl_lv_yes').classList.remove('active');$('e_lv_fields').classList.add('visible');document.querySelector('input[name=e_lv][value=no]').checked=true;}
+}
+function setPUFrom(mode){
+  if(mode==='same'){$('e_pu_same_btn').classList.add('active');$('e_pu_other_btn').classList.remove('active');$('e_pu_other_wrap').style.display='none';}
+  else{$('e_pu_other_btn').classList.add('active');$('e_pu_same_btn').classList.remove('active');$('e_pu_other_wrap').style.display='block';}
+}
+function selectCarrier(prefix,val){
+  document.querySelectorAll('#'+prefix+'_carrier_wrap .carrier-btn').forEach(b=>b.classList.remove('selected'));
+  const _cb = document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn[data-val="'+val+'"]')
+           || document.querySelector('#'+prefix+'_carrier_wrap .carrier-btn');
+  if(_cb) _cb.classList.add('selected');
+  if($(prefix+'_carrier_val')) $(prefix+'_carrier_val').value = val||'FA';
+}
+function selectBSource(prefix,val){
+  document.querySelectorAll('#'+prefix+'_bsource_wrap .bsource-btn').forEach(b=>b.classList.remove('selected'));
+  const _sb = document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn[data-val="'+val+'"]')
+           || document.querySelector('#'+prefix+'_bsource_wrap .bsource-btn');
+  if(_sb) _sb.classList.add('selected');
+  if($(prefix+'_bsource_val')) $(prefix+'_bsource_val').value = val||'Airline Direct';
+  const _ow = $(prefix+'_bsource_other_wrap');
+  if(_ow){ if(val==='Other') _ow.classList.add('visible'); else { _ow.classList.remove('visible'); if($(prefix+'_bsource_other')) $(prefix+'_bsource_other').value=''; } }
+}
+
+// ============================================
+// LEGS
+// ============================================
+function addLeg(prefix,data){
+  const wrap = $(prefix+'_legs');
+  const idx = wrap.children.length;
+  const div = document.createElement('div');
+  div.className='route-stop';
+  div.innerHTML = `
+    <div class="route-leg-label">Leg ${idx+1}</div>
+    <div class="field"><input type="text" class="leg-flight" placeholder="e.g. AA940" value="${data?escapeAttr(data.flight||''):''}"></div>
+    <div class="field"><input type="text" class="leg-from" placeholder="MIA" style="text-transform:uppercase" maxlength="3" value="${data?escapeAttr(data.from||''):''}"></div>
+    <div class="field"><input type="text" class="leg-to" placeholder="GRU" style="text-transform:uppercase" maxlength="3" value="${data?escapeAttr(data.to||''):''}"></div>
+    <div style="display:flex;gap:6px;align-items:end;">
+      <div class="field" style="flex:1"><input type="text" class="leg-date datepick" placeholder="MM/DD/YYYY" value="${data?escapeAttr(data.date||''):''}"></div>
+      <button class="remove-btn" onclick="this.closest('.route-stop').remove();renumberLegs('${prefix}');">✕</button>
+    </div>`;
+  wrap.appendChild(div);
+  initPickers();
+}
+function renumberLegs(prefix){
+  const wrap = $(prefix+'_legs');
+  Array.from(wrap.children).forEach((c,i)=>{c.querySelector('.route-leg-label').textContent='Leg '+(i+1);});
+}
+function collectLegs(prefix){
+  const out = [];
+  const wrap = $(prefix+'_legs');
+  if(!wrap) return out;
+  wrap.querySelectorAll('.route-stop').forEach(s=>{
+    out.push({
+      flight:s.querySelector('.leg-flight').value.trim(),
+      from:s.querySelector('.leg-from').value.trim().toUpperCase(),
+      to:s.querySelector('.leg-to').value.trim().toUpperCase(),
+      date:s.querySelector('.leg-date').value.trim()
+    });
+  });
+  return out;
+}
+
+// ============================================
+// VOLUMES
+// ============================================
+function addVolume(prefix,data){
+  const wrap = $(prefix+'_vols');
+  const idx = wrap.children.length;
+  const div = document.createElement('div');
+  div.className='volume-row';
+  div.innerHTML = `
+    <div class="volume-header">
+      <span class="volume-label">Volume ${idx+1}</span>
+      <button class="remove-btn" onclick="this.closest('.volume-row').remove();recalcTotals('${prefix}');">✕ Remove</button>
+    </div>
+    <div class="volume-fields">
+      <input class="vi vi-pcs" type="number" placeholder="pcs" value="${data?data.pcs||'':''}" oninput="recalcTotals('${prefix}')">
+      <input class="vi vi-lcm" type="number" placeholder="L" value="${data?data.lcm||'':''}" oninput="cmToIn(this,'lcm','${prefix}')" step="0.01">
+      <input class="vi vi-wcm" type="number" placeholder="W" value="${data?data.wcm||'':''}" oninput="cmToIn(this,'wcm','${prefix}')" step="0.01">
+      <input class="vi vi-hcm" type="number" placeholder="H" value="${data?data.hcm||'':''}" oninput="cmToIn(this,'hcm','${prefix}')" step="0.01">
+      <input class="vi vi-in vi-lin" type="number" placeholder="L" value="${data?data.lin||'':''}" oninput="inToCm(this,'lin','${prefix}')" step="0.01">
+      <input class="vi vi-in vi-win" type="number" placeholder="W" value="${data?data.win||'':''}" oninput="inToCm(this,'win','${prefix}')" step="0.01">
+      <input class="vi vi-in vi-hin" type="number" placeholder="H" value="${data?data.hin||'':''}" oninput="inToCm(this,'hin','${prefix}')" step="0.01">
+      <input class="vi vi-wkg" type="number" placeholder="kg" value="${data?data.wkg||'':''}" oninput="kgToLbs(this,'${prefix}')" step="0.01">
+      <input class="vi vi-in vi-wlbs" type="number" placeholder="lbs" value="${data?data.wlbs||'':''}" oninput="lbsToKg(this,'${prefix}')" step="0.01">
+    </div>`;
+  wrap.appendChild(div);
+  recalcTotals(prefix);
+}
+function flashConvert(el){el.classList.remove('vi-converted');void el.offsetWidth;el.classList.add('vi-converted');}
+function cmToIn(el,which,prefix){
+  const row = el.closest('.volume-row');
+  const cm = num(el.value);
+  if(cm){
+    const inEl = row.querySelector('.vi-'+which.replace('cm','in'));
+    inEl.value = (cm/2.54).toFixed(2);
+    flashConvert(inEl);
+  }
+  recalcTotals(prefix);
+}
+function inToCm(el,which,prefix){
+  const row = el.closest('.volume-row');
+  const inch = num(el.value);
+  if(inch){
+    const cmEl = row.querySelector('.vi-'+which.replace('in','cm'));
+    cmEl.value = (inch*2.54).toFixed(2);
+    flashConvert(cmEl);
+  }
+  recalcTotals(prefix);
+}
+function kgToLbs(el,prefix){
+  const row = el.closest('.volume-row');
+  const kg = num(el.value);
+  if(kg){
+    const lbsEl = row.querySelector('.vi-wlbs');
+    lbsEl.value = (kg*2.20462).toFixed(2);
+    flashConvert(lbsEl);
+  }
+  recalcTotals(prefix);
+}
+function lbsToKg(el,prefix){
+  const row = el.closest('.volume-row');
+  const lbs = num(el.value);
+  if(lbs){
+    const kgEl = row.querySelector('.vi-wkg');
+    kgEl.value = (lbs/2.20462).toFixed(2);
+    flashConvert(kgEl);
+  }
+  recalcTotals(prefix);
+}
+function collectVolumes(prefix){
+  const out = [];
+  const vWrap = $(prefix+'_vols');
+  if(!vWrap) return out;
+  vWrap.querySelectorAll('.volume-row').forEach(r=>{
+    out.push({
+      pcs:r.querySelector('.vi-pcs').value,
+      lcm:r.querySelector('.vi-lcm').value,
+      wcm:r.querySelector('.vi-wcm').value,
+      hcm:r.querySelector('.vi-hcm').value,
+      lin:r.querySelector('.vi-lin').value,
+      win:r.querySelector('.vi-win').value,
+      hin:r.querySelector('.vi-hin').value,
+      wkg:r.querySelector('.vi-wkg').value,
+      wlbs:r.querySelector('.vi-wlbs').value
+    });
+  });
+  return out;
+}
+function recalcTotals(prefix){
+  let totPcs=0,totKg=0,totVol=0;
+  $(prefix+'_vols').querySelectorAll('.volume-row').forEach(r=>{
+    const pcs = num(r.querySelector('.vi-pcs').value);
+    const L = num(r.querySelector('.vi-lcm').value);
+    const W = num(r.querySelector('.vi-wcm').value);
+    const H = num(r.querySelector('.vi-hcm').value);
+    const kg = num(r.querySelector('.vi-wkg').value);
+    totPcs += pcs;
+    totKg += kg;
+    if(pcs && L && W && H) totVol += pcs*(L*W*H)/1000000;
+  });
+  const volWt = totVol*166.67; // air freight standard
+  const gross = totKg;
+  const chargeableRaw = Math.max(gross,volWt);
+  const chargeable = roundIATA(chargeableRaw);
+  const cass = roundIATA(gross);
+
+  $(prefix+'_tot_pcs').textContent = totPcs||'—';
+  $(prefix+'_tot_kg').textContent = totKg?totKg.toFixed(2)+' kg':'—';
+  $(prefix+'_tot_lbs').textContent = totKg?(totKg*2.20462).toFixed(2)+' lbs':'—';
+  $(prefix+'_tot_vol').textContent = totVol?totVol.toFixed(4)+' m³':'—';
+  $(prefix+'_tot_volwt').textContent = volWt?volWt.toFixed(2)+' kg':'—';
+  $(prefix+'_chargeable_badge').textContent = chargeable?'✈️ Est. Chargeable: '+chargeable.toFixed(1)+' kg':'✈️ Est. Chargeable: —';
+
+  if(gross>0){
+    if($(prefix+'_cass_weight')) $(prefix+'_cass_weight').value = cass.toFixed(1);
+    if($(prefix+'_chargeable')) $(prefix+'_chargeable').value = chargeable.toFixed(1);
+  }else{
+    if($(prefix+'_cass_weight')) $(prefix+'_cass_weight').value = '';
+    if($(prefix+'_chargeable')) $(prefix+'_chargeable').value = '';
+  }
+}
+
+function collectChecklist(prefix){
+  const items = prefix==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const out = {};
+  items.forEach((_,i)=>{
+    const key = 'chk_'+i;
+    const cb = document.getElementById(prefix+'_chk_'+key);
+    const dt = document.getElementById(prefix+'_dt_'+key);
+    out[key] = {done: cb ? cb.checked : false, date: dt ? dt.value : ''};
+  });
+  return out;
+}
+
+// ============================================
+// CHECKLIST
+// ============================================
+// ═══════════════════════════════════════════
+// CHECKLIST
+// ═══════════════════════════════════════════
+function buildChecklist(p, _unused, state){
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const chkState = state || {};
+  const container=document.getElementById(p+'_checklist');
+  container.innerHTML='';
+  items.forEach((item,i)=>{
+    const div=document.createElement('div');
+    const key='chk_'+i;
+    div.className='check-item';div.id=p+'_ci_'+key;
+    const s = chkState[key];
+    const isChecked = s && !!(s.done || s.checked);
+    const dateVal = s && s.date ? s.date : '';
+    if(isChecked) div.classList.add('done');
+    div.innerHTML=`<input type="checkbox" id="${p}_chk_${key}" onchange="onCheck('${p}','${key}',this)" ${isChecked?'checked':''}><span class="check-name">${item.label}</span><input type="text" class="check-date-in datepick" id="${p}_dt_${key}" placeholder="MM/DD/YYYY" value="${dateVal}">`;
+    container.appendChild(div);
+  });
+  initPickers();
+  updateProgress(p);
+}
+function onCheck(p,key,el){
+  const ci=document.getElementById(p+'_ci_'+key);
+  if(el.checked){ci.classList.add('done');const dt=document.getElementById(p+'_dt_'+key);if(dt&&!dt.value){const n=new Date();dt.value=(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0')+'/'+n.getFullYear();}}
+  else{ci.classList.remove('done');}
+  updateProgress(p);updateBadge(p);
+}
+function updateProgress(p){
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
+  const total=items.length,pct=Math.round((done/total)*100);
+  document.getElementById(p+'_prog_fill').style.width=pct+'%';
+  document.getElementById(p+'_prog_text').textContent=done+' of '+total+' steps completed';
+  document.getElementById(p+'_prog_pct').textContent=pct+'%';
+  document.getElementById(p+'_chk_pct').textContent=done+' / '+total;
+}
+function updateBadge(p){
+  const items=p==='e'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const done=items.filter((_,i)=>document.getElementById(p+'_chk_chk_'+i)?.checked).length;
+  const sel=document.getElementById(p==='e'?'exp-status-select':'imp-status-select');
+  if(done>0&&sel.value==='NEW')sel.value='IN PROCESS';
+}
+
+
+// ============================================
+// AUTO-RESIZE TEXTAREAS
+// ============================================
+function autoResize(el){el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px';}
+function bindAutoResize(){
+  document.querySelectorAll('.auto-resize').forEach(t=>{
+    t.removeEventListener('input',t._autoResize);
+    t._autoResize = ()=>autoResize(t);
+    t.addEventListener('input',t._autoResize);
+    autoResize(t);
+  });
+}
+
+// ============================================
+// DATE PICKERS
+// ============================================
+function initPickers(){
+  document.querySelectorAll('.datepick:not(.fp-init)').forEach(el=>{
+    el.classList.add('fp-init');
+    flatpickr(el,{dateFormat:'m/d/Y',allowInput:true});
+  });
+  document.querySelectorAll('.datepick-dt:not(.fp-init)').forEach(el=>{
+    el.classList.add('fp-init');
+    flatpickr(el,{enableTime:true,dateFormat:'m/d/Y H:i',time_24hr:true,allowInput:true});
+  });
+}
+
+// ============================================
+// NEW / EDIT / SAVE / DELETE
+// ============================================
+function newProcess(mode){
+  currentEdit = {mode, id:null};
+  clearForm(mode);
+  if(mode==='exp'){
+    $('e_legs').innerHTML='';addLeg('e');
+    $('e_vols').innerHTML='';addVolume('e');
+    buildChecklist('e',null,{});
+    $('exp-status-select').value='NEW';
+    $('exp-days-open').textContent='';
+    showScreen('exp');
+  }else{
+    if($('i_legs')){$('i_legs').innerHTML='';addLeg('i');}
+    $('i_vols').innerHTML='';addVolume('i');
+    buildChecklist('i',null,{});
+    $('imp-status-select').value='NEW';
+    $('imp-days-open').textContent='';
+    showScreen('imp');
+  }
+  bindAutoResize();
+  initPickers();
+}
+
+function clearForm(mode){
+  const prefix = mode==='exp'?'e':'i';
+  const all = document.querySelectorAll('#screen-'+mode+' input, #screen-'+mode+' textarea, #screen-'+mode+' select');
+  all.forEach(el=>{
+    if(el.type==='radio'||el.type==='checkbox')return;
+    if(el.id==='exp-status-select'||el.id==='imp-status-select')return;
+    el.value='';
+  });
+  $((mode==='exp'?'exp':'imp')+'-file-display').textContent='—';
+  // Reset toggles
+  if(mode==='exp'){
+    eDG(false);eLV(true);eT('e_lbl_known','e_lbl_unknown');setPUFrom('same');
+    selectCarrier('e','FA');selectBSource('e','Airline Direct');
+  }else{
+    iDG(false);iT('i_lbl_ies_yes','i_lbl_ies_no');
+  }
+}
+
+function editProcess(id){
+  const p = processes.find(x=>x.id===id);
+  if(!p)return;
+  currentEdit = {mode:p.mode, id};
+  if(p.mode==='exp')loadExport(p);else loadImport(p);
+  showScreen(p.mode);
+  bindAutoResize();
+  initPickers();
+}
+
+function loadExport(p){
+  clearForm('exp');
+  $('e_file_number').value = p.fileNumber||'';$('exp-file-display').textContent = p.fileNumber||'—';
+  $('e_mawb').value = p.mawb||'';$('e_hawb').value = p.hawb||'';$('e_airline').value = p.airline||'';
+  $('e_origin').value = p.origin||'';$('e_dest').value = p.dest||'';$('e_agent').value = p.agent||'';$('e_reference').value = p.reference||'';
+  $('exp-status-select').value = p.status||'NEW';
+  eDG(p.dg==='dg');if(p.dg==='dg')eDGT(p.dgType||'pax');$('e_dg_desc').value = p.dgDesc||'';
+  if(p.security==='unknown')eT('e_lbl_unknown','e_lbl_known');else eT('e_lbl_known','e_lbl_unknown');
+  eLV(p.lv!=='no');
+  $('e_declared_value').value = p.declaredValue||'';$('e_hts_code').value = p.htsCode||'';$('e_aes_itn').value = p.aesItn||'';
+  $('e_shipper').value = p.shipper||'';$('e_shipper_address').value = p.shipperAddress||'';
+  $('e_consignee').value = p.consignee||'';$('e_consignee_address').value = p.consigneeAddress||'';
+  $('e_legs').innerHTML='';(p.legs&&p.legs.length?p.legs:[{}]).forEach(l=>addLeg('e',l));
+  $('e_cutoff').value = p.cutoff||'';$('e_departure').value = p.departure||'';
+  $('e_cass_weight').value = p.cassWeight||'';$('e_chargeable').value = p.chargeable||'';
+  $('e_airfreight_cost').value = p.airfreightCost||'';
+  selectBSource('e',p.bookingSource||'Airline Direct');
+  $('e_vols').innerHTML='';(p.volumes&&p.volumes.length?p.volumes:[{}]).forEach(v=>addVolume('e',v));
+  setPUFrom(p.puFromMode||'same');$('e_pu_from_address').value = p.puFromAddress||'';
+  $('e_pu_date').value = p.puDate||'';$('e_transfer_date').value = p.transferDate||'';
+  $('e_trucker').value = p.trucker||'';selectCarrier('e',p.carrier||'FA');
+  $('e_cfs').value = p.cfs||'';$('e_inland_cost').value = p.inlandCost||'';$('e_cfs_cost').value = p.cfsCost||'';
+  buildChecklist('e',null,p.checklist||{});
+  $('e_comments').value = p.comments||'';
+  $('e_agent_update').value = p.agentUpdate||'';
+  $('e_revenue').value = p.revenue||'';$('e_profit').value = p.profit||'';
+  $('exp-days-open').textContent = daysOpenText(p);
+  recalcTotals('e');
+}
+
+function loadImport(p){
+  clearForm('imp');
+  $('i_file_number').value = p.fileNumber||'';$('imp-file-display').textContent = p.fileNumber||'—';
+  $('i_mawb').value = p.mawb||'';$('i_hawb').value = p.hawb||'';$('i_airline').value = p.airline||'';
+  $('i_origin').value = p.origin||'';$('i_dest').value = p.dest||'';$('i_agent').value = p.agent||'';
+  $('i_customs_broker').value = p.customsBroker||'';$('i_reference').value = p.reference||'';
+  $('i_incoterm').value = p.incoterm||'';
+  $('imp-status-select').value = p.status||'NEW';
+  iDG(p.dg==='dg');if(p.dg==='dg')iDGT(p.dgType||'pax');$('i_dg_desc').value = p.dgDesc||'';
+  if(p.ies==='no')iT('i_lbl_ies_no','i_lbl_ies_yes');else iT('i_lbl_ies_yes','i_lbl_ies_no');
+  // ETA fields
+  if($('i_eta_id'))$('i_eta_id').value = p.eta||'';
+  if($('i_eta'))$('i_eta').value = p.eta||'';
+  if($('i_last_free_day'))$('i_last_free_day').value = p.lastFreeDay||'';
+  $('i_shipper').value = p.shipper||'';$('i_shipper_address').value = p.shipperAddress||'';
+  $('i_consignee').value = p.consignee||'';$('i_consignee_address').value = p.consigneeAddress||'';
+  // Dates & Scheduling (section 3 of import)
+  if($('i_pu_date'))$('i_pu_date').value = p.puDate||'';
+  if($('i_pu_from'))$('i_pu_from').value = p.puFrom||'';
+  if($('i_transfer_date'))$('i_transfer_date').value = p.transferDate||'';
+  if($('i_trucker'))$('i_trucker').value = p.trucker||'';
+  if($('i_cfs'))$('i_cfs').value = p.cfs||'';
+  if($('i_cass_weight'))$('i_cass_weight').value = p.cassWeight||'';
+  if($('i_chargeable'))$('i_chargeable').value = p.chargeable||'';
+  if($('i_inland_cost'))$('i_inland_cost').value = p.inlandCost||'';
+  // Volumes
+  $('i_vols').innerHTML='';(p.volumes&&p.volumes.length?p.volumes:[{}]).forEach(v=>addVolume('i',v));
+  // Station fees
+  if($('i_fee_cfs'))$('i_fee_cfs').value = p.feeCfs||'';
+  if($('i_fee_airline'))$('i_fee_airline').value = p.feeAirline||'';
+  if($('i_fee_storage'))$('i_fee_storage').value = p.feeStorage||'';
+  if($('i_fee_waiting'))$('i_fee_waiting').value = p.feeWaiting||'';
+  if($('i_fee_customs'))$('i_fee_customs').value = p.feeCustoms||'';
+  if($('i_fee_other'))$('i_fee_other').value = p.feeOther||'';
+  if(typeof calcFeesTotal==='function')calcFeesTotal();
+  buildChecklist('i',null,p.checklist||{});
+  $('i_comments').value = p.comments||'';
+  $('i_agent_update').value = p.agentUpdate||'';
+  $('i_revenue').value = p.revenue||'';$('i_profit').value = p.profit||'';
+  $('imp-days-open').textContent = daysOpenText(p);
+  recalcTotals('i');
+}
+
+async function saveProcess(mode, opts){
+  opts = opts || {}; // {silent: no toast (auto-save), close: return to list after saving}
+  // Safe field readers — return '' or 0 if element doesn't exist in this form
+  function val(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
+  function valNum(id){ var el=document.getElementById(id); if(!el) return 0; var v=String(el.value).replace(',','.'); return parseFloat(v)||0; }
+  function radio(name){ var el=document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : ''; }
+
+  var prefix = mode==='exp' ? 'e' : 'i';
+  var isNew = !currentEdit.id;
+  var id = currentEdit.id || uid();
+  var existing = isNew ? null : processes.find(function(p){ return p.id===id; });
+
+  var p = {
+    id: id, mode: mode,
+    status:           val((mode==='exp'?'exp':'imp')+'-status-select') || 'NEW',
+    fileNumber:       val(prefix+'_file_number'),
+    mawb:             val(prefix+'_mawb'),
+    hawb:             val(prefix+'_hawb'),
+    airline:          val(prefix+'_airline'),
+    origin:           val(prefix+'_origin').toUpperCase(),
+    dest:             val(prefix+'_dest').toUpperCase(),
+    agent:            val(prefix+'_agent'),
+    dg:               radio(prefix+'_dg') || 'non-dg',
+    dgType:           radio(prefix+'_dgsub') || 'pax',
+    dgDesc:           val(prefix+'_dg_desc'),
+    shipper:          val(prefix+'_shipper'),
+    shipperAddress:   val(prefix+'_shipper_address'),
+    consignee:        val(prefix+'_consignee'),
+    consigneeAddress: val(prefix+'_consignee_address'),
+    legs:             collectLegs(prefix),
+    cassWeight:       val(prefix+'_cass_weight'),
+    chargeable:       val(prefix+'_chargeable'),
+    airfreightCost:   valNum(prefix+'_airfreight_cost'),
+    volumes:          collectVolumes(prefix),
+    trucker:          val(prefix+'_trucker'),
+    checklist:        collectChecklist(prefix),
+    comments:         val(prefix+'_comments'),
+    agentUpdate:      val(prefix+'_agent_update'),
+    revenue:          valNum(prefix+'_revenue'),
+    profit:           valNum(prefix+'_profit'),
+    closedAt:         existing ? (existing.closedAt || '') : '',
+    createdAt:        existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt:        new Date().toISOString()
+  };
+  applyClosedAt(p);
+
+  if(mode === 'exp'){
+    p.reference     = val('e_reference');
+    p.security      = radio('e_sec') || 'known';
+    p.lv            = radio('e_lv') || 'yes';
+    p.declaredValue = val('e_declared_value');
+    p.htsCode       = val('e_hts_code');
+    p.aesItn        = val('e_aes_itn');
+    p.cutoff        = val('e_cutoff');
+    p.departure     = val('e_departure');
+    var bsrc        = val('e_bsource_val');
+    p.bookingSource = (bsrc === 'Other') ? ('Other: ' + val('e_bsource_other')) : (bsrc || 'Airline Direct');
+    var puSameBtn   = document.getElementById('e_pu_same_btn');
+    p.puFromMode    = (puSameBtn && puSameBtn.classList.contains('active')) ? 'same' : 'other';
+    p.puFromAddress = val('e_pu_from_address');
+    p.puDate        = val('e_pu_date');
+    p.transferDate  = val('e_transfer_date');
+    p.carrier       = val('e_carrier_val') || 'FA';
+    p.cfs           = val('e_cfs');
+    p.inlandCost    = valNum('e_inland_cost');
+    p.cfsCost       = valNum('e_cfs_cost');
+  } else {
+    p.customsBroker = val('i_customs_broker');
+    p.reference     = val('i_reference');
+    p.incoterm      = val('i_incoterm');
+    p.ies           = radio('i_ies') || 'yes';
+    p.eta           = val('i_eta_id') || val('i_eta');
+    p.lastFreeDay   = val('i_last_free_day');
+    p.puDate        = val('i_pu_date');
+    p.puFrom        = val('i_pu_from');
+    p.transferDate  = val('i_transfer_date');
+    p.cfs           = val('i_cfs');
+    p.inlandCost    = valNum('i_inland_cost');
+    p.feeCfs        = valNum('i_fee_cfs');
+    p.feeAirline    = valNum('i_fee_airline');
+    p.feeStorage    = valNum('i_fee_storage');
+    p.feeWaiting    = valNum('i_fee_waiting');
+    p.feeCustoms    = valNum('i_fee_customs');
+    p.feeOther      = valNum('i_fee_other');
+  }
+
+  if(isNew) processes.unshift(p);
+  else {
+    var idx = processes.findIndex(function(x){ return x.id === id; });
+    if(idx >= 0) processes[idx] = p;
+  }
+  currentEdit.id = id;
+  await saveProcessCloud(p);
+  saveLocal();
+  if(!opts.silent) showSaveToast();
+  if(opts.close) showScreen('list');
+}
+
+async function deleteCurrentProcess(mode){
+  if(!currentEdit.id){alert('Nothing to delete.');return;}
+  if(!confirm('Delete this process? This cannot be undone.'))return;
+  await deleteProcessCloud(currentEdit.id);
+  processes = processes.filter(p=>p.id!==currentEdit.id);
+  saveLocal();
+  currentEdit = {mode:null,id:null};
+  showScreen('list');
+}
+
+async function deleteRowProcess(id,e){
+  e.stopPropagation();
+  if(!confirm('Delete this process?'))return;
+  await deleteProcessCloud(id);
+  processes = processes.filter(p=>p.id!==id);
+  saveLocal();
+  renderTable();
+}
+
+// ============================================
+// DAYS OPEN
+// ============================================
+function isFrozenStatus(p){
+  const s = String(p.status||'').toUpperCase();
+  return s==='CLOSED' || s==='CANCELLED';
+}
+// Sets/clears closedAt when status crosses the closed boundary
+function applyClosedAt(p){
+  if(isFrozenStatus(p)){
+    if(!p.closedAt) p.closedAt = new Date().toISOString();
+  } else {
+    p.closedAt = '';
+  }
+}
+function daysOpen(p){
+  const created = p.createdAt ? new Date(p.createdAt) : null;
+  if(!created)return null;
+  if(isFrozenStatus(p)){
+    // Frozen: closedAt − createdAt (legacy files without closedAt: approximate with updatedAt)
+    const end = p.closedAt ? new Date(p.closedAt) : (p.updatedAt ? new Date(p.updatedAt) : null);
+    if(!end || isNaN(end)) return null;
+    return Math.max(0, Math.floor((end.getTime()-created.getTime())/(1000*60*60*24)));
+  }
+  const diff = Math.floor((Date.now()-created.getTime())/(1000*60*60*24));
+  return diff;
+}
+function daysOpenText(p){
+  const d = daysOpen(p);
+  if(isFrozenStatus(p)){
+    const label = p.status==='CANCELLED'?'✗ Cancelled':'✓ Closed';
+    return d===null ? label : label+' · '+d+' days';
+  }
+  if(d===null) return '';
+  return d+' days open';
+}
+function daysOpenBadge(p){
+  const d = daysOpen(p);
+  if(isFrozenStatus(p)){
+    const label = p.status==='CANCELLED'?'cancelled':'closed';
+    return '<span class="days-badge days-frozen">'+(d===null?label:d+'d · '+label)+'</span>';
+  }
+  if(d===null) return '';
+  const cls = d<=7?'days-fresh':d<=30?'days-mid':'days-old';
+  return '<span class="days-badge '+cls+'">'+d+'d</span>';
+}
+
+// ============================================
+// NEXT TASK
+// ============================================
+function nextTask(p){
+  const items = p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+  const chk = p.checklist||{};
+  for(let i=0;i<items.length;i++){
+    const v = chk['chk_'+i];
+    if(!v || !(v.done||v.checked)){
+      return {name:items[i].label, index:i, done:false};
+    }
+  }
+  return {name:'All complete', index:items.length, done:true};
+}
+function nextTaskBadge(p){
+  const t = nextTask(p);
+  if(t.done) return '<span class="next-task-badge ntb-done">✓ Done</span>';
+  const cls = 'ntb-'+(t.index%4);
+  return '<span class="next-task-badge '+cls+'" title="'+escapeAttr(t.name)+'">'+escapeHtml(t.name)+'</span>';
+}
+
+// ============================================
+// LIST TABLE
+// ============================================
+function renderTable(){
+  const search = $('f-search').value.trim().toLowerCase();
+  const modeF = $('f-mode').value;
+  // Multi-select status: collect checked values
+  const checkedStatuses = Array.from(document.querySelectorAll('#multi-status-dropdown input[type=checkbox]:checked')).map(cb=>cb.value);
+  const dFrom = parseDate($('f-date-from').value);
+  const dTo = parseDate($('f-date-to').value);
+
+  // Update button label
+  const btn = $('multi-status-btn');
+  if(btn) btn.textContent = checkedStatuses.length ? checkedStatuses.length+' Status(es) ▾' : 'Status ▾';
+
+  const showClosed = $('f-show-closed') ? $('f-show-closed').checked : true;
+
+  let rows = processes.filter(p=>{
+    if(modeF && p.mode!==modeF)return false;
+    if(checkedStatuses.length && !checkedStatuses.includes(p.status||'NEW'))return false;
+    // Default view hides closed/cancelled — unless toggled on or explicitly selected in the status filter
+    if(!checkedStatuses.length && !showClosed && !isOpenProcess(p))return false;
+    if(search){
+      // Search all Section 1 identification fields (both exp and imp)
+      const hay = [p.fileNumber,p.mawb,p.hawb,p.airline,p.origin,p.dest,p.agent,p.reference,p.shipper,p.consignee].join(' ').toLowerCase();
+      if(!hay.includes(search))return false;
+    }
+    if(dFrom || dTo){
+      const cmpDate = p.mode==='exp'?parseDate(p.departure):parseDate(p.eta);
+      if(!cmpDate)return false;
+      if(dFrom && cmpDate<dFrom)return false;
+      if(dTo && cmpDate>dTo)return false;
+    }
+    return true;
+  });
+
+  $('list-count').textContent = rows.length+' record'+(rows.length===1?'':'s');
+  const tbody = $('table-body');
+  const empty = $('empty-state');
+  if(!rows.length){
+    tbody.innerHTML='';
+    document.querySelector('.processes-table').style.display='none';
+    empty.style.display='block';
+    return;
+  }
+  document.querySelector('.processes-table').style.display='';
+  empty.style.display='none';
+
+  tbody.innerHTML = rows.map(p=>{
+    const dateLabel = p.mode==='exp'?(p.departure||''):(p.eta||'');
+    const chkList = p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+    const totalItems = chkList.length;
+    let done = 0;
+    const chk = p.checklist || {};
+    chkList.forEach((_,i) => { const v=chk['chk_'+i]; if(v&&(v.done||v.checked)) done++; });
+    const pct = Math.round((done/totalItems)*100);
+    const statusPill = statusPillHtml(p.status||'NEW');
+    return `
+      <tr onclick="editProcess('${p.id}')">
+        <td><span class="pill ${p.mode==='exp'?'pill-exp':'pill-imp'}">${p.mode==='exp'?'EXP':'IMP'}</span></td>
+        <td class="mono">${escapeHtml(p.fileNumber||'')}</td>
+        <td class="mono">${escapeHtml(p.mawb||'')}</td>
+        <td>
+          <div style="font-weight:500">${escapeHtml(p.shipper||'—')}</div>
+          <div style="font-size:11px;color:var(--text-hint)">${escapeHtml(p.consignee||'—')}</div>
+        </td>
+        <td class="route-cell">${escapeHtml(p.origin||'?')} → ${escapeHtml(p.dest||'?')}</td>
+        <td class="mono">${escapeHtml(dateLabel)}</td>
+        <td>${statusPill}</td>
+        <td>${nextTaskBadge(p)}</td>
+        <td>${daysOpenBadge(p)}</td>
+        <td>
+          <div class="mono" style="font-size:10px;color:var(--text-hint)">${done}/${totalItems} (${pct}%)</div>
+          <div class="prog-mini"><div class="prog-mini-fill" style="width:${pct}%"></div></div>
+        </td>
+        <td><button class="delete-row-btn" onclick="deleteRowProcess('${p.id}',event)">✕</button></td>
+      </tr>`;
+  }).join('');
+}
+function statusPillHtml(s){
+  const map = {
+    'NEW':'pill-new','IN PROCESS':'pill-inprocess','CLOSED':'pill-closed',
+    'ON HOLD':'pill-onhold','CANCELLED':'pill-cancelled',
+    'QUOTE':'pill-quote','MISC/TRUCKING':'pill-misc'
+  };
+  return '<span class="pill '+(map[s]||'pill-new')+'">'+s+'</span>';
+}
+function clearFilters(){
+  ['f-search','f-date-from','f-date-to'].forEach(id=>$(id).value='');
+  $('f-mode').value='';
+  document.querySelectorAll('#multi-status-dropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
+  const btn = $('multi-status-btn'); if(btn) btn.textContent='Status ▾';
+  if($('f-show-closed')) $('f-show-closed').checked=false;
+  renderTable();
+}
+function toggleStatusDropdown(){
+  const dd = $('multi-status-dropdown');
+  if(dd) dd.style.display = dd.style.display==='none'?'block':'none';
+}
+
+// ============================================
+// DASHBOARD
+// ============================================
+function parseDateSafe(value){
+  if(!value) return null;
+
+  if(value instanceof Date && !isNaN(value)){
+    return value;
+  }
+
+  const isoDate = new Date(value);
+
+  if(!isNaN(isoDate)){
+    return isoDate;
+  }
+
+  if(typeof value === 'string'){
+    const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+
+    if(match){
+      const month = Number(match[1]) - 1;
+      const day = Number(match[2]);
+      const year = Number(match[3]);
+
+      const date = new Date(year, month, day);
+
+      if(!isNaN(date)){
+        return date;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getDaysOpen(p){
+  const status = String(p.status || '').toUpperCase();
+
+  if(status === 'CLOSED' || status === 'CANCELLED'){
+    // Frozen: same logic as daysOpen() — closedAt − createdAt, legacy fallback updatedAt
+    const created = parseDateSafe(p.createdAt);
+    const end = parseDateSafe(p.closedAt || p.updatedAt);
+    if(!created || !end) return 0;
+    return Math.max(0, Math.floor((end.getTime() - created.getTime()) / 86400000));
+  }
+
+  const baseDate = parseDateSafe(p.createdAt || p.updatedAt);
+
+  if(!baseDate){
+    return 0;
+  }
+
+  const now = new Date();
+  const diff = now.getTime() - baseDate.getTime();
+
+  return Math.max(0, Math.floor(diff / 86400000));
+}
+
+function getChecklistProgress(p){
+  const checklist = p.checklist || {};
+
+  if(Array.isArray(checklist)){
+    if(checklist.length === 0) return 0;
+
+    const done = checklist.filter(item => {
+      if(typeof item === 'boolean') return item;
+      return item.done || item.checked || item.completed;
+    }).length;
+
+    return Math.round((done / checklist.length) * 100);
+  }
+
+  if(typeof checklist === 'object'){
+    const keys = Object.keys(checklist);
+
+    if(keys.length === 0) return 0;
+
+    const done = keys.filter(key => {
+      const item = checklist[key];
+
+      if(typeof item === 'boolean') return item;
+
+      if(item && typeof item === 'object'){
+        return item.done || item.checked || item.completed || item.value === true;
+      }
+
+      return false;
+    }).length;
+
+    return Math.round((done / keys.length) * 100);
+  }
+
+  return 0;
+}
+
+function getNextTask(p){
+  const checklist = p.checklist || {};
+
+  if(Array.isArray(checklist)){
+    const pending = checklist.find(item => {
+      if(typeof item === 'boolean') return !item;
+      return !(item.done || item.checked || item.completed);
+    });
+
+    if(pending){
+      return pending.name || pending.label || pending.title || 'Pending checklist item';
+    }
+  }
+
+  if(typeof checklist === 'object'){
+    for(const key of Object.keys(checklist)){
+      const item = checklist[key];
+
+      if(typeof item === 'boolean' && !item){
+        return key;
+      }
+
+      if(item && typeof item === 'object'){
+        const isDone = item.done || item.checked || item.completed || item.value === true;
+
+        if(!isDone){
+          return item.name || item.label || item.title || key;
+        }
+      }
+    }
+  }
+
+  return '';
+}
+
+function isOpenProcess(p){
+  const status = String(p.status || '').toUpperCase();
+
+  return status !== 'CLOSED' && status !== 'CANCELLED';
+}
+
+function formatMoney(value){
+  const number = parseFloat(String(value||'').replace(',','.')) || 0;
+  // Force dot as decimal separator regardless of browser locale
+  return '$' + number.toFixed(2).replace(',', '.');
+}
+
+function renderDashboard(){
+  const data = Array.isArray(processes) ? processes : [];
+
+  const dashKpis = document.getElementById('dash-kpis');
+  const dashAlerts = document.getElementById('dash-alerts');
+  const dashRecent = document.getElementById('dash-recent');
+  const dashRevenue = document.getElementById('dash-revenue');
+  const dashUpdated = document.getElementById('dash-updated');
+
+  if(!dashAlerts){
+    console.warn('Elemento #dash-alerts não encontrado.');
+    return;
+  }
+
+  const openProcesses = data.filter(isOpenProcess);
+  const exportsCount = data.filter(p => p.mode === 'exp').length;
+  const importsCount = data.filter(p => p.mode === 'imp').length;
+  const closedCount = data.filter(p => String(p.status || '').toUpperCase() === 'CLOSED').length;
+  const onHoldCount = data.filter(p => String(p.status || '').toUpperCase() === 'ON HOLD').length;
+
+  if(dashUpdated){
+    dashUpdated.textContent = `Updated ${new Date().toLocaleString('en-US')}`;
+  }
+
+  if(dashKpis){
+    // "This month" counts — processes created in current calendar month
+    const nowM = new Date(); const curY = nowM.getFullYear(), curMo = nowM.getMonth();
+    function thisMonth(arr){ return arr.filter(p=>{ const d=parseDateSafe(p.createdAt); return d&&d.getFullYear()===curY&&d.getMonth()===curMo; }).length; }
+    const onHoldList = data.filter(p => String(p.status || '').toUpperCase() === 'ON HOLD');
+    const tmTotal    = thisMonth(data);
+    const tmOpen     = thisMonth(openProcesses);
+    const tmExports  = thisMonth(data.filter(p=>p.mode==='exp'));
+    const tmImports  = thisMonth(data.filter(p=>p.mode==='imp'));
+    const tmClosed   = thisMonth(data.filter(p=>String(p.status||'').toUpperCase()==='CLOSED'));
+    const tmOnHold   = thisMonth(onHoldList);
+
+    // Real trend values: processes created this month vs last month
+    const lmDate = new Date(curY, curMo - 1, 1);
+    const lmY = lmDate.getFullYear(), lmMo = lmDate.getMonth();
+    function lastMonth(arr){ return arr.filter(p=>{ const d=parseDateSafe(p.createdAt); return d&&d.getFullYear()===lmY&&d.getMonth()===lmMo; }).length; }
+    function calcTrend(cur, prev){
+      if(!prev) return { pct: null, dir: 'neutral' };
+      const pct = Math.round(((cur - prev) / prev) * 100);
+      if(pct === 0) return { pct: 0, dir: 'neutral' };
+      return { pct: Math.abs(pct), dir: pct > 0 ? 'up' : 'down' };
+    }
+    const trends = {
+      total:   calcTrend(tmTotal,   lastMonth(data)),
+      open:    calcTrend(tmOpen,    lastMonth(openProcesses)),
+      exports: calcTrend(tmExports, lastMonth(data.filter(p=>p.mode==='exp'))),
+      imports: calcTrend(tmImports, lastMonth(data.filter(p=>p.mode==='imp'))),
+      closed:  calcTrend(tmClosed,  lastMonth(data.filter(p=>String(p.status||'').toUpperCase()==='CLOSED'))),
+      onhold:  calcTrend(tmOnHold,  lastMonth(onHoldList))
+    };
+    function trendHtml(t){
+      if(t.pct === null) return `<div class="dash-card-trend neutral">— · vs last month</div>`;
+      if(t.dir==='neutral') return `<div class="dash-card-trend neutral">— No change · vs last month</div>`;
+      const arrow = t.dir==='up' ? '▲' : '▼';
+      return `<div class="dash-card-trend ${t.dir}">${arrow} ${t.pct}% · vs last month</div>`;
+    }
+
+    dashKpis.innerHTML = `
+      <div class="dash-card" onclick="filterAndGo('','')">
+        <div class="dash-card-label">Total Processes</div>
+        <div class="dash-card-value">${data.length}</div>
+        <div class="dash-card-badge">This month · ${tmTotal}</div>
+        ${trendHtml(trends.total)}
+      </div>
+
+      <div class="dash-card" onclick="filterAndGo('','OPEN_MULTI')">
+        <div class="dash-card-label">Open</div>
+        <div class="dash-card-value warn">${openProcesses.length}</div>
+        <div class="dash-card-badge">This month · ${tmOpen}</div>
+        ${trendHtml(trends.open)}
+      </div>
+
+      <div class="dash-card" onclick="filterAndGo('exp','')">
+        <div class="dash-card-label">Exports</div>
+        <div class="dash-card-value accent">${exportsCount}</div>
+        <div class="dash-card-badge">This month · ${tmExports}</div>
+        ${trendHtml(trends.exports)}
+      </div>
+
+      <div class="dash-card" onclick="filterAndGo('imp','')">
+        <div class="dash-card-label">Imports</div>
+        <div class="dash-card-value imp">${importsCount}</div>
+        <div class="dash-card-badge">This month · ${tmImports}</div>
+        ${trendHtml(trends.imports)}
+      </div>
+
+      <div class="dash-card" onclick="filterAndGo('','CLOSED')">
+        <div class="dash-card-label">Closed Files</div>
+        <div class="dash-card-value green">${closedCount}</div>
+        <div class="dash-card-badge">This month · ${tmClosed}</div>
+        ${trendHtml(trends.closed)}
+      </div>
+
+      <div class="dash-card no-click" style="${onHoldCount > 0 ? 'border-color:#E8C060;background:var(--warn-bg)' : ''}">
+        <div class="dash-card-label">On Hold</div>
+        <div class="dash-card-value ${onHoldCount > 0 ? 'warn' : ''}">${onHoldCount}</div>
+        <div class="dash-card-badge">This month · ${tmOnHold}</div>
+        ${trendHtml(trends.onhold)}
+      </div>
+    `;
+  }
+
+  const alerts = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Helper: parse MM/DD/YYYY or ISO date string → Date (midnight)
+  function parseAlertDate(s){
+    if(!s) return null;
+    // ISO format
+    if(s.includes('T') || (s.includes('-') && s.length >= 10)){
+      const d = new Date(s); d.setHours(0,0,0,0); return isNaN(d)?null:d;
+    }
+    // MM/DD/YYYY
+    const parts = s.split('/');
+    if(parts.length === 3){
+      const d = new Date(+parts[2], +parts[0]-1, +parts[1]);
+      d.setHours(0,0,0,0); return isNaN(d)?null:d;
+    }
+    return null;
+  }
+
+  function daysDiff(dateStr){
+    const d = parseAlertDate(dateStr);
+    if(!d) return null;
+    return Math.round((d - today) / 86400000);
+  }
+
+  // ── 1. Processos parados (só NEW e IN PROCESS — QUOTE/ON HOLD/MISC ficar parado é normal)
+  const STALE_STATUSES = ['NEW','IN PROCESS'];
+  openProcesses.filter(p => STALE_STATUSES.includes(String(p.status||'').toUpperCase())).forEach(p => {
+    const fn = p.fileNumber || '—';
+    const lastUpdate = parseAlertDate(p.updatedAt || p.createdAt);
+    if(!lastUpdate) return;
+    const daysSince = Math.round((today - lastUpdate) / 86400000);
+    if(daysSince >= 21){
+      alerts.push({type:'danger', icon:'🔥', text:`${fn} — no updates for ${daysSince} days`, id: p.id, priority: 1});
+    } else if(daysSince >= 10){
+      alerts.push({type:'warn', icon:'⏳', text:`${fn} — no updates for ${daysSince} days`, id: p.id, priority: 2});
+    }
+  });
+
+  // ── 2. ETA vencida (IMP: eta passou e ainda aberto)
+  openProcesses.filter(p => p.mode === 'imp').forEach(p => {
+    const fn = p.fileNumber || '—';
+    const diff = daysDiff(p.eta);
+    if(diff !== null && diff < 0){
+      alerts.push({type:'danger', icon:'📦', text:`${fn} — ETA was ${Math.abs(diff)}d ago, still open`, id: p.id, priority: 1});
+    }
+  });
+
+  // ── 3. ETA próxima (IMP: dentro de 3 dias)
+  openProcesses.filter(p => p.mode === 'imp' && p.eta).forEach(p => {
+    const fn = p.fileNumber || '—';
+    const diff = daysDiff(p.eta);
+    if(diff === null || diff < 0) return;
+    if(diff === 0){
+      alerts.push({type:'danger', icon:'🛬', text:`${fn} — ETA is TODAY`, id: p.id, priority: 1});
+    } else if(diff === 1){
+      alerts.push({type:'danger', icon:'🛬', text:`${fn} — ETA tomorrow`, id: p.id, priority: 1});
+    } else if(diff <= 3){
+      alerts.push({type:'warn', icon:'🛬', text:`${fn} — ETA in ${diff} days`, id: p.id, priority: 2});
+    }
+  });
+
+  // ── 4. Last Free Day é hoje ou passou (IMP only)
+  openProcesses.filter(p => p.mode === 'imp' && p.lastFreeDay).forEach(p => {
+    const fn = p.fileNumber || '—';
+    const diff = daysDiff(p.lastFreeDay);
+    if(diff === null) return;
+    if(diff === 0){
+      alerts.push({type:'danger', icon:'⚠️', text:`${fn} — Last Free Day is TODAY`, id: p.id, priority: 1});
+    } else if(diff < 0){
+      alerts.push({type:'danger', icon:'💸', text:`${fn} — Last Free Day passed ${Math.abs(diff)}d ago`, id: p.id, priority: 1});
+    } else if(diff <= 2){
+      alerts.push({type:'warn', icon:'⚠️', text:`${fn} — Last Free Day in ${diff} day${diff===1?'':'s'}`, id: p.id, priority: 2});
+    }
+  });
+
+  // ── (Removido) "Fechado sem revenue" saiu do painel de alertas — é tarefa de
+  //     faturamento, não urgência do dia. Não muda ao longo do dia.
+
+  // ── Dedup: manter só o alerta mais crítico por processo, com contador "+N" dos demais
+  alerts.sort((a,b) => (a.priority - b.priority) || String(a.text).localeCompare(String(b.text)));
+  const seen = new Map();
+  const extraCount = new Map();
+  const deduped = [];
+  alerts.forEach(a => {
+    if(!a.id){ deduped.push(a); return; } // alertas sem processo passam direto
+    if(!seen.has(a.id)){
+      seen.set(a.id, a);
+      deduped.push(a);
+    } else {
+      extraCount.set(a.id, (extraCount.get(a.id)||0) + 1);
+    }
+  });
+  // Anexa "(+N)" ao alerta mantido quando o processo tinha outros
+  deduped.forEach(a => {
+    if(a.id && extraCount.get(a.id)){
+      a.text = `${a.text} (+${extraCount.get(a.id)})`;
+    }
+  });
+  const finalAlerts = deduped;
+
+
+  const alertCountEl = document.getElementById('dash-alert-count');
+  if(alertCountEl) alertCountEl.textContent = finalAlerts.length ? `(${finalAlerts.length})` : '';
+  if(finalAlerts.length === 0){
+    dashAlerts.innerHTML = '<div class="no-alerts">✅ All clear — no alerts right now.</div>';
+  } else {
+    dashAlerts.innerHTML = finalAlerts.map(a => {
+      const click = a.id
+        ? `onclick="editProcess('${a.id}')" style="cursor:pointer"`
+        : '';
+      return `<div class="alert-item ${a.type}" ${click}>
+        <span class="alert-icon">${a.icon}</span>
+        <span>${escapeHtml(a.text)}</span>
+        ${a.id ? '<span class="alert-arrow">→</span>' : ''}
+      </div>`;
+    }).join('');
+  }
+
+  if(dashRecent){
+    const RECENT_STATUSES = ['NEW','QUOTE','IN PROCESS','MISC/TRUCKING'];
+    const recentFiltered = [...data]
+      .filter(p => RECENT_STATUSES.includes(String(p.status||'').toUpperCase()))
+      .sort((a,b) => {
+        const dateA = parseDateSafe(a.updatedAt || a.createdAt) || new Date(0);
+        const dateB = parseDateSafe(b.updatedAt || b.createdAt) || new Date(0);
+        return dateB - dateA;
+      });
+    const recentSlice = recentFiltered.slice(0, 10);
+
+    dashRecent.innerHTML = recentSlice.map(p => {
+      const mode = p.mode === 'imp' ? 'IMP' : 'EXP';
+      const fileNumber = p.fileNumber || '—';
+      const route = p.origin && p.dest ? `${p.origin} → ${p.dest}` : '—';
+      const status = statusPillHtml(p.status || 'NEW');
+      const d = getDaysOpen(p);
+      let badgeCls, badgeColor;
+      if(d <= 5){ badgeCls='days-fresh'; badgeColor=''; }
+      else if(d <= 14){ badgeCls='days-mid'; badgeColor=''; }
+      else { badgeCls='days-old'; badgeColor=''; }
+      const daysBadge = `<span class="days-badge ${badgeCls}">${d}d</span>`;
+
+      return `
+        <tr onclick="editProcess('${p.id}')" style="cursor:pointer">
+          <td><span class="pill ${p.mode==='exp'?'pill-exp':'pill-imp'}">${mode}</span></td>
+          <td class="mono">${escapeHtml(fileNumber)}</td>
+          <td>${escapeHtml(route)}</td>
+          <td>${status}</td>
+          <td>${daysBadge}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Footer count
+    const recentPanel = dashRecent.closest('.dash-panel');
+    let footerEl = recentPanel ? recentPanel.querySelector('.recent-footer') : null;
+    if(!footerEl && recentPanel){
+      footerEl = document.createElement('div');
+      footerEl.className = 'recent-footer';
+      footerEl.style.cssText = 'margin-top:10px;font-size:11px;color:var(--text-hint);font-family:IBM Plex Mono,monospace;display:flex;justify-content:space-between;align-items:center';
+      recentPanel.appendChild(footerEl);
+    }
+    if(footerEl){
+      footerEl.innerHTML = `<span>Exibindo ${recentSlice.length} de ${recentFiltered.length} processos</span><a href="#" onclick="filterAndGo('','');return false;" style="color:var(--accent);text-decoration:none;font-size:11px">Ver histórico completo →</a>`;
+    }
+  }
+
+  if(dashRevenue){
+    const totalRevenue = data.reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const totalProfit  = data.reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const expRevenue   = data.filter(p=>p.mode==='exp').reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const impRevenue   = data.filter(p=>p.mode==='imp').reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const expProfit    = data.filter(p=>p.mode==='exp').reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const impProfit    = data.filter(p=>p.mode==='imp').reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const expMargin    = expRevenue > 0 ? ((expProfit / expRevenue) * 100).toFixed(1) : '0.0';
+    const impMargin    = impRevenue > 0 ? ((impProfit / impRevenue) * 100).toFixed(1) : '0.0';
+    // Current-month figures (by createdAt, consistent with the rest of the dashboard)
+    const nowRev = new Date(); const revY = nowRev.getFullYear(), revMo = nowRev.getMonth();
+    function inCurMonth(p){ const d = parseDateSafe(p.createdAt); return d && d.getFullYear()===revY && d.getMonth()===revMo; }
+    const monthData    = data.filter(inCurMonth);
+    const monthRevenue = monthData.reduce((sum,p) => sum + Number(p.revenue || 0), 0);
+    const monthProfit  = monthData.reduce((sum,p) => sum + Number(p.profit  || 0), 0);
+    const monthMargin  = monthRevenue > 0 ? ((monthProfit / monthRevenue) * 100).toFixed(1) : '0.0';
+    const margin       = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+
+    // Last 6 months labels and counts
+    const now = new Date();
+    const monthLabels = [];
+    const expCounts = [];
+    const impCounts = [];
+    for(let i=5; i>=0; i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      monthLabels.push(d.toLocaleString('en-US',{month:'short', year:'2-digit'}));
+      const m = d.getMonth(), y = d.getFullYear();
+      expCounts.push(data.filter(p=>{
+        const created = parseDateSafe(p.createdAt);
+        return p.mode==='exp' && created && created.getMonth()===m && created.getFullYear()===y;
+      }).length);
+      impCounts.push(data.filter(p=>{
+        const created = parseDateSafe(p.createdAt);
+        return p.mode==='imp' && created && created.getMonth()===m && created.getFullYear()===y;
+      }).length);
+    }
+
+    dashRevenue.innerHTML = `
+      <div class="rev-summary-grid">
+        <div class="rev-main-card">
+          <div class="rev-main-label">Revenue · This Month</div>
+          <div class="rev-main-value">${formatMoney(monthRevenue)}</div>
+          <div class="rev-main-sub">All time: ${formatMoney(totalRevenue)}</div>
+        </div>
+        <div class="rev-main-card profit">
+          <div class="rev-main-label">Profit · This Month</div>
+          <div class="rev-main-value profit">${formatMoney(monthProfit)}</div>
+          <div class="rev-main-sub">Margin: <strong>${monthMargin}%</strong> · All time: ${formatMoney(totalProfit)} (${margin}%)</div>
+        </div>
+        <div class="rev-breakdown">
+          <div class="rev-breakdown-title">Financial Breakdown · All Time</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+            <div style="padding-right:12px;border-right:1px solid var(--border)">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="pill pill-exp" style="font-size:9px;padding:1px 6px">EXP</span> Export</div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val accent">${formatMoney(expRevenue)}</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val accent">${formatMoney(expProfit)}</span></div>
+              <div style="height:1px;background:var(--border);margin:6px 0"></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val accent" style="font-size:15px;font-weight:600">${expMargin}%</span></div>
+            </div>
+            <div style="padding-left:12px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--imp);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span class="pill pill-imp" style="font-size:9px;padding:1px 6px">IMP</span> Import</div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Revenue</span><span class="rev-breakdown-val imp">${formatMoney(impRevenue)}</span></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Profit</span><span class="rev-breakdown-val imp">${formatMoney(impProfit)}</span></div>
+              <div style="height:1px;background:var(--border);margin:6px 0"></div>
+              <div class="rev-breakdown-row"><span class="rev-breakdown-label">Margin</span><span class="rev-breakdown-val imp" style="font-size:15px;font-weight:600">${impMargin}%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rev-breakdown" style="padding:12px 16px">
+          <div class="rev-breakdown-title">Processes — Last 6 Months</div>
+          <canvas id="dash-chart" style="width:100%;height:120px"></canvas>
+        </div>
+      </div>
+    `;
+
+    // Render Chart.js grouped bar chart
+    requestAnimationFrame(()=>{
+      const ctx = document.getElementById('dash-chart');
+      if(!ctx) return;
+      if(ctx._chartInstance) ctx._chartInstance.destroy();
+      ctx._chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [
+            { label: 'Exports', data: expCounts, backgroundColor: 'rgba(26,79,138,0.75)', borderColor: '#1A4F8A', borderWidth:1 },
+            { label: 'Imports', data: impCounts, backgroundColor: 'rgba(107,63,160,0.75)', borderColor: '#6B3FA0', borderWidth:1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: { size: 10 }, boxWidth: 10 } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { font: { size: 10 }, stepSize: 1, precision: 0 }, grid: { color: 'rgba(0,0,0,.05)' } }
+          }
+        }
+      });
+    });
+  }
+}
+function filterAndGo(mode, status){
+  $('f-mode').value = mode;
+  // Cards without an explicit status filter count everything (incl. closed) — keep the list consistent
+  if($('f-show-closed')) $('f-show-closed').checked = !status;
+  // Reset all checkboxes first
+  document.querySelectorAll('#multi-status-dropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
+  const btn = $('multi-status-btn');
+  if(status === 'OPEN_MULTI'){
+    // Check New, In Process, Misc/Trucking
+    ['NEW','IN PROCESS','MISC/TRUCKING'].forEach(s=>{
+      const cb = document.querySelector('#multi-status-dropdown input[value="'+s+'"]');
+      if(cb) cb.checked=true;
+    });
+    if(btn) btn.textContent='3 Status(es) ▾';
+  } else if(status){
+    const cb = document.querySelector('#multi-status-dropdown input[value="'+status+'"]');
+    if(cb) cb.checked=true;
+    if(btn) btn.textContent='1 Status(es) ▾';
+  } else {
+    if(btn) btn.textContent='Status ▾';
+  }
+  showScreen('list');
+}
+
+// ============================================
+// STATUS QUICK CHANGE
+// ============================================
+$('exp-status-select').addEventListener('change',async function(){
+  if(!currentEdit.id)return;
+  const p = processes.find(x=>x.id===currentEdit.id);
+  if(p){p.status=this.value;applyClosedAt(p);p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
+});
+$('imp-status-select').addEventListener('change',async function(){
+  if(!currentEdit.id)return;
+  const p = processes.find(x=>x.id===currentEdit.id);
+  if(p){p.status=this.value;applyClosedAt(p);p.updatedAt=new Date().toISOString();await saveProcessCloud(p);saveLocal();}
+});
+
+// ============================================
+// AUTO-SAVE (debounced, existing processes only)
+// ============================================
+// Only fires after the process has been saved once (currentEdit.id set),
+// so a stray keystroke never creates a ghost process.
+function scheduleAutoSave(mode){
+  if(!currentEdit.id) return;
+  clearTimeout(saveTimers[mode]);
+  saveTimers[mode] = setTimeout(function(){ saveProcess(mode, {silent:true}); }, 2500);
+}
+['exp','imp'].forEach(function(m){
+  var scr = document.getElementById('screen-'+m);
+  if(!scr) return;
+  scr.addEventListener('input',  function(){ scheduleAutoSave(m); });
+  scr.addEventListener('change', function(){ scheduleAutoSave(m); });
+});
+
+// ============================================
+// STATION FEES TOTAL
+// ============================================
+function calcFeesTotal(){
+  // Comma-safe: accepts "1,5" (pt-BR) as 1.5
+  function feeVal(id){
+    var el = document.getElementById(id);
+    if(!el) return 0;
+    return parseFloat(String(el.value).replace(',', '.')) || 0;
+  }
+  // Inland Freight (Section 5) flows into payables automatically as its own line
+  var inland = feeVal('i_inland_cost');
+  var inlandEl = document.getElementById('i_fee_inland_auto');
+  if(inlandEl) inlandEl.value = inland ? inland.toFixed(2) : '';
+  var total = feeVal('i_fee_cfs') + feeVal('i_fee_airline') + feeVal('i_fee_storage') +
+              feeVal('i_fee_waiting') + feeVal('i_fee_customs') + feeVal('i_fee_other') +
+              inland;
+  var el = document.getElementById('i_fees_total');
+  if(el) el.textContent = '$ ' + total.toFixed(2).replace(',', '.');
+}
+
+// ============================================
+// EXPORT EXCEL / PDF / BACKUP
+// ============================================
+// ============================================
+// GCC DAILY REPORT (PDF + Excel)
+// Rules:
+//  - Agent contains "GCC", status not Closed/Cancelled, File Closed not checked
+//  - Leaves the report if "Latest Update to Agent" says "file closed" (any case)
+//  - Import leaves the report once DN Sent is checked
+//  - Export leaves the report once DN Sent AND Departure Date are checked
+//    (stays on the report through the departure day itself, drops the next day)
+//  - "Updated" column always shows the report date (updates are done daily)
+// ============================================
+const GCC_NAVY = [0, 32, 96];
+const GCC_FILE_CLOSED_RE = /file\s*-?\s*closed/i;
+
+function gccChkDone(p, key){
+  const keys = p.mode==='imp' ? IMP_CHK_KEYS : EXP_CHK_KEYS;
+  const i = keys.indexOf(key); if(i<0) return null;
+  const v = (p.checklist||{})['chk_'+i];
+  return v && (v.done||v.checked) ? (v.date||'done') : null;
+}
+function gccParseDate(s){
+  if(!s) return null;
+  s = String(s);
+  if(s.includes('T')||(s.includes('-')&&s.length>=10)){const d=new Date(s);return isNaN(d)?null:d;}
+  const p=s.split('/');
+  if(p.length>=3){const d=new Date(+p[2],+p[0]-1,+p[1]);return isNaN(d)?null:d;}
+  return null;
+}
+function gccFmt(d){
+  if(!d) return '';
+  return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear();
+}
+function gccClean(s){
+  s = String(s||'').replace(/\[EXTERNAL\]/gi,' ').replace(/\b(RE|FW|FWD)\s*:\s*/gi,' ');
+  s = s.replace(/\s+/g,' ').trim();
+  const m = s.match(/^(.{8,}?)\s*\1$/);            // text pasted twice
+  if(m) s = m[1].trim();
+  return s.replace(/^[\/|\-\s]+|[\/|\-\s]+$/g,'');
+}
+
+function isOnGccReport(p){
+  if(!/gcc/i.test(p.agent||'')) return false;
+  if(isFrozenStatus(p)) return false;
+  if(gccChkDone(p,'file_closed')) return false;
+  if(GCC_FILE_CLOSED_RE.test(p.agentUpdate||'')) return false;
+  if(p.mode==='imp') return !gccChkDone(p,'dn_sent');
+  const dep = gccChkDone(p,'departure_date');
+  if(!(gccChkDone(p,'dn_sent') && dep)) return true;
+  const depD = gccParseDate(dep), t = new Date(); t.setHours(0,0,0,0);
+  return !!(depD && depD >= t);   // departing today (or later) -> still reported
+}
+
+function buildGccReportRows(){
+  const todayStr = gccFmt(new Date());
+  const rows = processes.filter(isOnGccReport).map(p=>{
+    const nomD = gccParseDate(gccChkDone(p,'nomination')) || gccParseDate(p.createdAt);
+    return {
+      nomD,
+      nomination: gccFmt(nomD),
+      type: p.mode==='exp' ? 'Air Export' : 'Air Import',
+      carrier: String(p.airline||'').toUpperCase().trim(),
+      hawb: String(p.hawb||'').trim(),
+      booking: String(p.mawb||'').trim(),
+      client: gccClean(p.mode==='exp' ? p.shipper : p.consignee),
+      shipper: gccClean(p.shipper),
+      consignee: gccClean(p.consignee),
+      reference: gccClean(p.reference),
+      update: gccClean(p.agentUpdate) || '—',
+      updated: todayStr
+    };
+  });
+  rows.sort((a,b)=>(a.nomD||0)-(b.nomD||0));
+  return [
+    {title:'AIR EXPORT', rows: rows.filter(r=>r.type==='Air Export')},
+    {title:'AIR IMPORT', rows: rows.filter(r=>r.type==='Air Import')},
+  ].filter(s=>s.rows.length);
+}
+
+const GCC_COLS = [
+  {h:'Nomination', k:'nomination', pdf:52, xl:11},
+  {h:'Shipment Type', k:'type', pdf:50, xl:11},
+  {h:'Carrier', k:'carrier', pdf:34, xl:7},
+  {h:'HAWB', k:'hawb', pdf:50, xl:11},
+  {h:'Booking', k:'booking', pdf:62, xl:14},
+  {h:'Shipper', k:'shipper', pdf:70, xl:20},
+  {h:'Consignee', k:'consignee', pdf:70, xl:20},
+  {h:'Reference #', k:'reference', pdf:124, xl:36},
+  {h:'Notes | Latest Update', k:'update', pdf:190, xl:48},
+  {h:'Updated', k:'updated', pdf:50, xl:11},
+];
+
+function exportGccReport(){
+  if(!processes.length){alert('No data loaded yet.');return;}
+  const sections = buildGccReportRows();
+  const total = sections.reduce((s,x)=>s+x.rows.length,0);
+  if(!total){alert('No active GCC shipments to report.');return;}
+  const today = new Date();
+  const longDate = today.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const fileBase = 'GCC Daily Report '+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0')+'-'+today.getFullYear();
+  gccReportPDF(sections, longDate, fileBase);
+  gccReportXLSX(sections, longDate, fileBase);
+}
+
+function gccReportPDF(sections, longDate, fileBase, asData){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'pt', format:'letter'});
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...GCC_NAVY); doc.rect(20,20,W-40,34,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('GCC DAILY REPORT', W/2, 42, {align:'center'});
+  doc.setFontSize(8); doc.text(longDate, W-26, 31, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('SCL / Seacoast Logistics', 26, 31);
+
+  const body = [];
+  sections.forEach(s=>{
+    body.push([{content:s.title+'  ('+s.rows.length+')', colSpan:GCC_COLS.length,
+      styles:{fillColor:[221,231,245], fontStyle:'bold', textColor:[20,20,20]}}]);
+    s.rows.forEach(r=> body.push(GCC_COLS.map(c=>r[c.k]||'')));
+  });
+
+  doc.autoTable({
+    theme:'grid', startY: 56, margin:{left:20,right:20},
+    head:[GCC_COLS.map(c=>c.h)], body,
+    styles:{font:'helvetica', fontSize:7, cellPadding:2.5, overflow:'linebreak', valign:'middle', lineColor:[190,190,190], lineWidth:0.4, textColor:[25,25,25]},
+    headStyles:{fillColor:GCC_NAVY, textColor:255, fontStyle:'bold', halign:'center'},
+    columnStyles: Object.fromEntries(GCC_COLS.map((c,i)=>[i,{cellWidth:c.pdf}])),
+    didDrawPage: d=>{
+      const H = doc.internal.pageSize.getHeight();
+      doc.setFontSize(6.5); doc.setTextColor(110);
+      doc.text('Page '+doc.internal.getNumberOfPages(), W-20, H-16.5, {align:'right'});
+    }
+  });
+  if(asData) return doc.output('datauristring');
+  doc.save(fileBase+'.pdf');
+}
+
+// Used by the daily automation: returns rows + PDF (base64) without downloading
+function gccReportPdfData(){
+  const sections = buildGccReportRows();
+  const today = new Date();
+  const longDate = today.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  return {date: gccFmt(today), rows: sections.reduce((s,x)=>s+x.rows.length,0), pdf: gccReportPDF(sections, longDate, '', true)};
+}
+
+function gccReportXLSX(sections, longDate, fileBase){
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('GCC Daily Report', {
+    pageSetup:{orientation:'landscape', paperSize:1, fitToPage:true, fitToWidth:1, fitToHeight:0,
+               margins:{left:0.3,right:0.3,top:0.4,bottom:0.4,header:0.2,footer:0.2}}
+  });
+  const n = GCC_COLS.length, last = String.fromCharCode(64+n);
+  ws.columns = GCC_COLS.map(c=>({width:c.xl}));
+  const navy = 'FF002060';
+  const border = {style:'thin', color:{argb:'FFBFBFBF'}};
+  const allBorders = {top:border,left:border,bottom:border,right:border};
+
+  ws.mergeCells('A1:'+last+'1');
+  ws.getCell('A1').value = longDate;
+  ws.getCell('A1').alignment = {horizontal:'right'};
+  ws.getCell('A1').font = {bold:true, color:{argb:'FFFFFFFF'}, size:9};
+  ws.mergeCells('A2:'+last+'2');
+  ws.getCell('A2').value = 'GCC DAILY REPORT';
+  ws.getCell('A2').font = {bold:true, size:16, color:{argb:'FFFFFFFF'}};
+  ws.getCell('A2').alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(2).height = 26;
+  [1,2].forEach(r=>{ for(let c=1;c<=n;c++) ws.getRow(r).getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}}; });
+
+  const hr = ws.addRow(GCC_COLS.map(c=>c.h));
+  hr.height = 30;
+  hr.eachCell(c=>{ c.font={bold:true,color:{argb:'FFFFFFFF'},size:10}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};
+    c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border=allBorders; });
+
+  sections.forEach(s=>{
+    const sr = ws.addRow([s.title+'  ('+s.rows.length+')']);
+    ws.mergeCells('A'+sr.number+':'+last+sr.number);
+    sr.getCell(1).font = {bold:true, size:10};
+    sr.getCell(1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFDDE7F5'}};
+    s.rows.forEach(r=>{
+      const row = ws.addRow(GCC_COLS.map(c=>r[c.k]||''));
+      row.eachCell({includeEmpty:true}, c=>{
+        c.font = {size:9}; c.border = allBorders;
+        c.alignment = {vertical:'middle', wrapText:true};
+      });
+    });
+  });
+  ws.views = [{state:'frozen', ySplit:3}];
+  ws.pageSetup.printTitlesRow = '3:3';
+
+  wb.xlsx.writeBuffer().then(buf=>{
+    const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=fileBase+'.xlsx'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+}
+
+function exportExcel(){
+  if(!processes.length){alert('No data to export.');return;}
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  function parseAnyDate(s){
+    if(!s) return null;
+    if(s.includes('T')||(s.includes('-')&&s.length>=10)){const d=new Date(s);return isNaN(d)?null:d;}
+    const p=s.split('/');
+    if(p.length>=3){const d=new Date(+p[2],+p[0]-1,+p[1]);return isNaN(d)?null:d;}
+    return null;
+  }
+
+  function chkByName(p,name){
+    const keys=p.mode==='imp'?IMP_CHK_KEYS:EXP_CHK_KEYS;
+    const idx=keys.indexOf(name);if(idx<0)return null;
+    const v=(p.checklist||{})['chk_'+idx];if(!v)return null;
+    return{done:!!(v.done||v.checked),date:v.date||''};
+  }
+
+  function fmtDate(d){
+    if(!d)return'';
+    return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear();
+  }
+
+  function getNomination(p){
+    const item=chkByName(p,'nomination');if(!item||!item.date)return'';
+    const d=parseAnyDate(item.date);return d?fmtDate(d):item.date;
+  }
+
+  function getBilling(p){
+    const item=chkByName(p,'dn_sent');if(!item||!item.date)return'';
+    const d=parseAnyDate(item.date);return d?MONTHS[d.getMonth()]:'';
+  }
+
+  function getLastUpdate(p){
+    const items=p.mode==='exp'?EXP_CHECKLIST:IMP_CHECKLIST;
+    const chk=p.checklist||{};let latest=null;
+    items.forEach((_,i)=>{
+      const v=chk['chk_'+i];
+      if(v&&(v.done||v.checked)&&v.date){const d=parseAnyDate(v.date);if(d&&(!latest||d>latest))latest=d;}
+    });
+    return latest?fmtDate(latest):'';
+  }
+
+  function getTotalPieces(p){
+    return(p.volumes||[]).reduce((s,v)=>s+(parseInt(v.pcs)||0),0)||'';
+  }
+
+  function getGrossWeight(p){
+    const total=(p.volumes||[]).reduce((s,v)=>s+(parseFloat(String(v.wkg||'').replace(',','.'))||0),0);
+    return total>0?total:(parseFloat(String(p.cassWeight||'').replace(',','.'))||'');
+  }
+
+  // Parse monetary value → JS number (handles both dot and comma as decimal)
+  function toMoney(v){
+    if(v===''||v===null||v===undefined)return null;
+    const n=parseFloat(String(v).replace(',','.'));
+    return isNaN(n)?null:n;
+  }
+
+  // Build data rows
+  const HEADERS = ['Nomination','Billing','Agent','Ops.','Shipment Type','Airline',
+                   'HAWB','SCL File No','MAWB Number','Client','Pieces','Weight',
+                   'Reference #','Notes','Update','Revenue','Profit'];
+  const COL_WIDTHS = [14,10,14,10,14,10,16,14,18,30,8,10,24,44,12,14,14];
+  const MONEY_COLS = new Set(['Revenue','Profit']); // columns that must be numeric
+
+  const dataRows = processes.map(p=>[
+    getNomination(p),
+    getBilling(p),
+    p.agent||'',
+    'Daiane',
+    p.mode==='exp'?'Air Export':'Air Import',
+    p.airline||'',
+    p.hawb||'',
+    p.fileNumber||'',
+    p.mawb||'',
+    p.mode==='exp'?(p.shipper||''):(p.consignee||''),
+    getTotalPieces(p),
+    getGrossWeight(p),
+    p.reference||'',
+    p.agentUpdate||'',
+    getLastUpdate(p),
+    toMoney(p.revenue),
+    toMoney(p.profit)
+  ]);
+
+  // ── Build workbook with ExcelJS ──
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Processes');
+
+  // Header row
+  ws.addRow(HEADERS);
+  const headerRow = ws.getRow(1);
+  headerRow.font = {bold:true, name:'Calibri', size:11};
+  headerRow.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1A4F8A'}};
+  headerRow.font = {bold:true, name:'Calibri', size:11, color:{argb:'FFFFFFFF'}};
+  headerRow.alignment = {vertical:'middle', horizontal:'center'};
+  headerRow.height = 20;
+
+  // Column widths
+  ws.columns = HEADERS.map((h,i)=>({header:h, width:COL_WIDTHS[i]}));
+
+  // Data rows
+  dataRows.forEach(rowData=>{
+    const row = ws.addRow(rowData);
+    row.height = 16;
+
+    HEADERS.forEach((h,ci)=>{
+      const cell = row.getCell(ci+1);
+      const val  = rowData[ci];
+      const isEmpty = val===null||val===undefined||val==='';
+
+      // Yellow fill for empty cells
+      if(isEmpty){
+        cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF9C4'}};
+      }
+
+      // Number format for money columns
+      if(MONEY_COLS.has(h)){
+        if(!isEmpty && val!==null){
+          cell.numFmt = '"$"#,##0.00';  // Excel will display with its own locale but store as number
+          cell.value  = val;            // already a JS float — no comma issue
+        }
+      }
+
+      // Thin border on all cells
+      cell.border = {
+        top:   {style:'thin', color:{argb:'FFD8D5CE'}},
+        left:  {style:'thin', color:{argb:'FFD8D5CE'}},
+        bottom:{style:'thin', color:{argb:'FFD8D5CE'}},
+        right: {style:'thin', color:{argb:'FFD8D5CE'}}
+      };
+
+      cell.alignment = {vertical:'middle', wrapText: h==='Notes'};
+    });
+  });
+
+  // Freeze header row
+  ws.views = [{state:'frozen', ySplit:1}];
+
+  // Write and download
+  wb.xlsx.writeBuffer().then(function(buffer){
+    const blob = new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'air_freight_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+
+function exportPDF(mode){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const prefix = mode==='exp'?'e':'i';
+  doc.setFontSize(16);
+  doc.text((mode==='exp'?'Export':'Import')+' Cover - '+$(prefix+'_file_number').value,14,16);
+  doc.setFontSize(10);
+  doc.text('MAWB: '+$(prefix+'_mawb').value+' | Route: '+$(prefix+'_origin').value+' → '+$(prefix+'_dest').value,14,24);
+  doc.text('Shipper: '+$(prefix+'_shipper').value,14,32);
+  doc.text('Consignee: '+$(prefix+'_consignee').value,14,38);
+  doc.text('Chargeable: '+($(prefix+'_chargeable').value||'-')+' kg',14,44);
+  const agentUpd = $(prefix+'_agent_update') ? $(prefix+'_agent_update').value : '';
+  if(agentUpd){
+    doc.text('Latest Update to Agent:',14,52);
+    const lines = doc.splitTextToSize(agentUpd, 180);
+    doc.text(lines,14,58);
+  }
+  doc.save(($(prefix+'_file_number').value||'export')+'.pdf');
+}
+
+function exportBackup(){
+  const data = {processes,companies,exportedAt:new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;a.download = 'afm_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(url);
+}
+function importBackupClick(){$('import-file').click();}
+async function importBackup(ev){
+  const file = ev.target.files[0];if(!file)return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!confirm('Replace all current data with backup?'))return;
+    processes = data.processes||[];
+    companies = (data.companies||[]).map(c=>({
+      ...c,
+      types: Array.isArray(c.types) ? c.types : (c.type?[c.type]:[]),
+      address: c.address || ''
+    }));
+    if(cloudReady){
+      showLoading('Restoring backup to cloud…');
+      for(const p of processes){const row=processToRow(p);await supa.from('processes').upsert(row);}
+      for(const c of companies){await supa.from('companies').upsert({
+        id:c.id, name:c.name,
+        types:c.types||[], type:(c.types&&c.types[0])||c.type||null,
+        address:c.address||'', contact:c.contact, phone:c.phone, notes:c.notes
+      });}
+      hideLoading();
+    }
+    saveLocal();saveLocalCompanies();
+    renderTable();renderCompanyList();
+    alert('✓ Backup restored.');
+  }catch(e){alert('Invalid backup file.');}
+  ev.target.value='';
+}
+
+// ============================================
+// INIT
+// ============================================
+window.addEventListener('DOMContentLoaded',async()=>{
+  await initSupabase();
+  initPickers();
+  bindAutoResize();
+});
+
+// ============================================
+// iPad: Tab / Shift+Tab entre campos  (v4 + diagnóstico)
+// O Safari do iPad não entrega o Tab ao app e move o foco
+// por conta própria (às vezes para trás). Aqui o app:
+//  1) trata o Tab se ele chegar como keydown ou keyup;
+//  2) corrige saltos de foco feitos pelo teclado (sem toque)
+//     levando para o campo seguinte ao anterior.
+// Em outros aparelhos nada muda. Diagnóstico: ?debug=1
+// ============================================
+(function(){
+  const VER='tabfix-v5';
+  const ua=navigator.userAgent, plat=navigator.platform, tp=navigator.maxTouchPoints||0;
+  const isIPad=/iPad|iPhone/.test(ua)||(/Mac/.test(plat)&&tp>1);
+  const DEBUG=/[?&]debug=1/.test(location.search);
+  let box=null;
+  function log(m){
+    if(!DEBUG) return;
+    if(!box){box=document.createElement('div');box.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;opacity:.92;pointer-events:none';document.body.appendChild(box);}
+    box.textContent=(m+'\n'+box.textContent).split('\n').slice(0,16).join('\n');
+  }
+  const d=el=>!el||el===document.body?'body':el.tagName.toLowerCase()+(el.id?'#'+el.id:'');
+  const SEL='input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea';
+  const fields=()=>[...document.querySelectorAll(SEL)].filter(el=>!el.disabled&&!el.readOnly&&el.tabIndex!==-1&&el.offsetParent!==null&&el.getClientRects().length>0);
+  const isTab=e=>e.key==='Tab'||e.code==='Tab'||e.keyCode===9;
+  let lastField=null, lastPointer=0, lastKeyNav=0, moving=false, shiftHeld=false;
+  window.addEventListener('keydown',e=>{if(e.key==='Shift')shiftHeld=true;},true);
+  window.addEventListener('keyup',e=>{if(e.key==='Shift')shiftHeld=false;},true);
+  window.addEventListener('blur',()=>{shiftHeld=false;});
+  function go(from,back){
+    const list=fields(); if(!list.length) return;
+    let i=list.indexOf(from); if(i===-1) i=back?list.length:-1;
+    const next=list[(i+(back?-1:1)+list.length)%list.length];
+    moving=true; next.focus(); moving=false;
+    if(next.tagName==='INPUT'&&next.select) try{next.select();}catch(_){}
+    try{next.scrollIntoView({block:'nearest'});}catch(_){}
+    lastField=next; lastKeyNav=Date.now();
+    log('  -> '+d(next));
+  }
+  window.addEventListener('DOMContentLoaded',()=>log(VER+' | iPad='+isIPad+' | touch='+tp));
+  ['pointerdown','touchstart','mousedown'].forEach(t=>window.addEventListener(t,()=>{lastPointer=Date.now();},true));
+  function onKey(e){
+    log(e.type+' key='+e.key+' kc='+e.keyCode+' shift='+e.shiftKey+' em='+d(e.target));
+    if(!isIPad||!isTab(e)||e.altKey||e.metaKey||e.ctrlKey) return;
+    e.preventDefault(); e.stopPropagation();
+    if(e.type==='keyup'&&Date.now()-lastKeyNav<250) return; // já tratado no keydown
+    go(document.activeElement&&document.activeElement.matches&&document.activeElement.matches(SEL)?document.activeElement:lastField,e.shiftKey);
+  }
+  window.addEventListener('keydown',onKey,true);
+  // Enter = próximo campo (Shift+Enter = anterior), só no iPad,
+  // porque o iPad não entrega o Tab ao app. Em caixas de texto
+  // grandes (endereços, notas) o Enter continua pulando linha.
+  window.addEventListener('keydown',e=>{
+    if(!isIPad||e.key!=='Enter'||e.altKey||e.metaKey||e.ctrlKey||e.isComposing) return;
+    const t=e.target;
+    if(!t||!t.matches||!t.matches(SEL)||t.tagName==='TEXTAREA') return;
+    e.preventDefault();
+    go(t,e.shiftKey);
+  },true);
+  window.addEventListener('keyup',onKey,true);
+  window.addEventListener('focusin',e=>{
+    const t=e.target;
+    log('focusin '+d(t)+(Date.now()-lastPointer<800?' (toque)':' (teclado)'));
+    if(!t.matches||!t.matches(SEL)) return;
+    if(isIPad&&!moving&&lastField&&t!==lastField&&Date.now()-lastPointer>800&&Date.now()-lastKeyNav>250){
+      // salto feito pelo iPad sem toque: segue a ordem do formulário
+      const list=fields(), a=list.indexOf(lastField), b=list.indexOf(t);
+      const want=a>-1?(a+(shiftHeld?-1:1)+list.length)%list.length:-1;
+      if(a>-1&&b!==want){ const from=lastField; setTimeout(()=>go(from,shiftHeld),0); return; }
+    }
+    lastField=t;
+  },true);
+})();
+</script>
+</body>
+</html>
